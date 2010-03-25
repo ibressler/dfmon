@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project hotplug_mgr -->
-<!-- Saved: 2010-03-25, 07:08:18 -->
+<!-- Saved: 2010-03-25, 07:11:43 -->
 <!-- Copyright (C) 2010 ,  -->
 <Project version="4.6">
   <Language></Language>
@@ -12,6 +12,7 @@
   <Author></Author>
   <Email></Email>
   <Sources>
+    <Source>test.py</Source>
   </Sources>
   <Forms>
   </Forms>
