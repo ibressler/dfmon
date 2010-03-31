@@ -9,8 +9,8 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     def __init__(s, parent=None):
         QtGui.QMainWindow.__init__(s, parent)
-#        s.ui = Ui_Form1()
         s.setupUi(s)
+
 
 def show(argv):
     app = QtGui.QApplication(argv)
