@@ -629,8 +629,6 @@ def consoleMenu():
         time.sleep(1.0)
         getStatus()
 
-
-
 def cmdName(argv):
     if not argv or len(argv) <= 0:
         return ""
