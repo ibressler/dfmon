@@ -489,7 +489,7 @@ class ScsiDevice:
         return output
 
     def disp(s):
-        """Outputs user-oriented information, less complete"""
+        """Outputs user-oriented information, less complete, data only"""
         if not s.isValid():
             return ([],[])
         subList = s._dev.disp()

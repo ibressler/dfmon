@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project hotplug_mgr -->
-<!-- Saved: 2010-03-25, 07:11:43 -->
+<!-- Saved: 2010-03-31, 16:36:42 -->
 <!-- Copyright (C) 2010 ,  -->
 <Project version="4.6">
   <Language></Language>
@@ -13,6 +13,7 @@
   <Email></Email>
   <Sources>
     <Source>test.py</Source>
+    <Source>hotplug.py</Source>
   </Sources>
   <Forms>
   </Forms>
@@ -24,6 +25,7 @@
   </Interfaces>
   <Others>
   </Others>
+  <MainScript>hotplug.py</MainScript>
   <Vcs>
     <VcsType>Subversion</VcsType>
     <VcsOptions>
