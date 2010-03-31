@@ -1,7 +1,4 @@
-#! /usr/bin/env python
-
 # todo:
-    # model&vendor string extraction
     # truecrypt compatibility
 
 import sys
@@ -59,61 +56,6 @@ def formatSize(size):
     else:
         return "%.2f%s" % (short, n)
 
-def getSize(blockPath):
-    """Returns the overall numerical size of a scsi block device.
-    arg: absolute path to the scsi block device"""
-    if not os.path.isdir(blockPath):
-        return -1
-    fn = os.path.join(blockPath, "size")
-    text = getLineFromFile(fn)
-    if text.isdigit():
-        return long(text)*blockSize
-    else:
-        return -1
-
-def getBlkDevPath(devPath):
-    """Returns the scsi block device path.
-    in:  path to the scsi device
-    out: path to the associated block device AND the block device name"""
-    if not os.path.isdir(devPath): 
-        return []
-    devPath = os.path.join(devPath, "block:");
-    entries = glob.glob(devPath+"*")
-    if not entries:
-        return []
-    fullPath = entries[0]
-    devName = fullPath[len(devPath):]
-    return (fullPath, devName)
-
-# how to improve this ? is there a direct way to get the device file ?
-def getBlkDevFilename(devNum):
-    """Search the block device filename in /dev/ based on the major/minor number"""
-    if not devNum or devNum < 0:
-        return ""
-    # get all device files first
-    for root, dirs, files in os.walk(osDevPath):
-        # ignore directories with leading dot
-        for i in reversed(range(0,len(dirs))):
-            if dirs[i][0] == ".":
-                del dirs[i]
-        # add the files found to a list
-        for fn in files:
-            # ignore some files
-            if fn[0:3] == "pty" or fn[0:3] == "tty":
-                continue
-            fullName = os.path.join(root,fn)
-            try:
-                statinfo = os.lstat(fullName) # no symbolic links !
-            except OSError, e:
-                print "Can't stat",fullName,"->",str(e)
-                continue
-            else:
-                # compare device numbers on block devices
-                if stat.S_ISBLK(statinfo.st_mode) and \
-                   devNum == statinfo.st_rdev:
-                    return fullName
-    return ""
-
 def callSysCommand(cmdList):
     if not cmdList or len(cmdList) <= 0:
         return ""
@@ -128,29 +70,7 @@ def callSysCommand(cmdList):
         raise MyError("Failed to run command '"+
                       cmdList[0]+"', returned: "+ 
                       str(retCode)+"\n"+stderr)
-
     return stdout
-
-def addList2List(outList, devNameList, basePath):
-    """Creates block devices from a device name list and adds them to outList \
-    in:     directory path where the device names from the list exist
-    in:     list of device names
-    in/out: list of valid block devices"""
-    if outList == None or not devNameList:
-        return
-    # add all partitions as block devices (recursive)
-    for devName in devNameList:
-        queryPath = os.path.join(basePath,devName)
-        if not os.path.isdir(queryPath):
-            continue
-        try:
-            dev = BlockDevice(devName, queryPath)
-            if not dev.isValid():
-                raise MyError("Not Valid")
-        except MyError, e:
-            print "Could not figure out block device ",devName,"->",e
-        else:
-            outList.append(dev)
 
 class MyError(UserWarning):
     def __init__(s, value):
@@ -243,7 +163,7 @@ class BlockDevice:
         if s._size < 0:
             raise MyError("Could not determine block device size")
         s.getDeviceNumber()
-        s._ioFile = getBlkDevFilename(s._devNum)
+        s._ioFile = getIoFilename(s._devNum)
         if not os.path.exists(s._ioFile):
             raise MyError("Could not find IO device path")
         # determine mount point
@@ -254,12 +174,12 @@ class BlockDevice:
         # get partitions eventually
         partitions = s.getSubDev(s._blkDevPath, s._blkDevName+"*")
         s._partitions = []
-        addList2List(s._partitions, partitions, s._blkDevPath)
+        addSubDevices(s._partitions, partitions, s._blkDevPath)
         # get holders eventually
         basePath = s._blkDevPath+"holders"+os.sep
         holders = s.getSubDev(basePath, "*")
         s._holders = []
-        addList2List(s._holders, holders, basePath)
+        addSubDevices(s._holders, holders, basePath)
         # final verification
         if not s.isValid():
             raise MyError("Determined block device information not valid")
@@ -387,7 +307,40 @@ class BlockDevice:
         else:
             pass # several partitions, which ? use exception
 
-### end BlockDevice ###
+def getSize(blockPath):
+    """Returns the overall numerical size of a scsi block device.
+    arg: absolute path to the scsi block device"""
+    if not os.path.isdir(blockPath):
+        return -1
+    fn = os.path.join(blockPath, "size")
+    text = getLineFromFile(fn)
+    if text.isdigit():
+        return long(text)*blockSize
+    else:
+        return -1
+
+def addSubDevices(outList, devNameList, basePath):
+    """Creates block devices from a device name list and adds them to outList \
+    in:     directory path where the device names from the list exist
+    in:     list of device names
+    in/out: list of valid block devices"""
+    if outList == None or not devNameList:
+        return
+    # add all partitions as block devices (recursive)
+    for devName in devNameList:
+        queryPath = os.path.join(basePath,devName)
+        if not os.path.isdir(queryPath):
+            continue
+        try:
+            dev = BlockDevice(devName, queryPath)
+            if not dev.isValid():
+                raise MyError("Not Valid")
+        except MyError, e:
+            print "Could not figure out block device ",devName,"->",e
+        else:
+            outList.append(dev)
+
+### end BlockDevice related stuff
 
 class ScsiDevice:
     _scsiAdr = None # list with <host> <channel> <id> <lun>
@@ -501,8 +454,50 @@ class ScsiDevice:
         dev = ["["+reduce(lambda a, b: a+":"+b, s._scsiAdr)+"]", inUseStr, s._model]
         return (dev,subList)
 
+def getBlkDevPath(devPath):
+    """Returns the scsi block device path.
+    in:  path to the scsi device
+    out: path to the associated block device AND the block device name"""
+    if not os.path.isdir(devPath): 
+        return []
+    devPath = os.path.join(devPath, "block:");
+    entries = glob.glob(devPath+"*")
+    if not entries:
+        return []
+    fullPath = entries[0]
+    devName = fullPath[len(devPath):]
+    return (fullPath, devName)
 
-### end ScsiDevice ###
+# how to improve this ? is there a direct way to get the device file ?
+def getIoFilename(devNum):
+    """Search the block device filename in /dev/ based on the major/minor number"""
+    if not devNum or devNum < 0:
+        return ""
+    # get all device files first
+    for root, dirs, files in os.walk(osDevPath):
+        # ignore directories with leading dot
+        for i in reversed(range(0,len(dirs))):
+            if dirs[i][0] == ".":
+                del dirs[i]
+        # add the files found to a list
+        for fn in files:
+            # ignore some files
+            if fn[0:3] == "pty" or fn[0:3] == "tty":
+                continue
+            fullName = os.path.join(root,fn)
+            try:
+                statinfo = os.lstat(fullName) # no symbolic links !
+            except OSError, e:
+                print "Can't stat",fullName,"->",str(e)
+                continue
+            else:
+                # compare device numbers on block devices
+                if stat.S_ISBLK(statinfo.st_mode) and \
+                   devNum == statinfo.st_rdev:
+                    return fullName
+    return ""
+
+### end ScsiDevice related stuff
 
 def getScsiDevices(inPath):
     """Returns a list of scsi device descriptors including block devices"""
@@ -574,16 +569,6 @@ def printTable(listArr):
 def printBlkInfo(blkInfo):
     return printTable(formatBlkInfo(blkInfo, 1, "'> "))
 
-def getFlatPartList(blkInfo):
-    """Returns a flat list of available partitions"""
-    partList = []
-    if blkInfo and len(blkInfo) > 0:
-        partList.append(blkInfo[0])
-        for part in blkInfo[1]:
-            partList.extend(getFlatPartList(part))
-
-    return partList
-
 def getStatus():
     global mountStatus
     global swapStatus
@@ -610,28 +595,26 @@ def getStatus():
 
     return (devList, devInfoList)
 
-# core invokation
-
-try:
-    (devList, devInfoList) = getStatus()
-except MyError, e:
-    print "Error initializing system status: ",e
-else:
-
-    input = removeLineBreak(raw_input("\n=> Select a device ('q' for quit): "))
-    if input != "q" and input.isdigit():
-        d = int(input)
-        if d < 0: d = 0
-        if d >= len(devList): d = len(devList)
-        print "selected device:",input,"\n",printBlkInfo(devInfoList[d][1])
-        try:
-            devList[d].blk().mount()
-        except DeviceInUseWarning:
-            input = removeLineBreak(raw_input("\n=> Selected device is in use, unmount ? [Yn] "))
-            if len(input) == 0:
-                devList[d].blk().umount()
+def consoleMenu():
+    try:
+        devList, devInfoList = getStatus()
+    except MyError, e:
+        print "Error initializing system status: ",e
     else:
-        print "aborted."
-
-    time.sleep(1.0)
-    getStatus()
+        input = removeLineBreak(raw_input("\n=> Select a device ('q' for quit): "))
+        if input != "q" and input.isdigit():
+            d = int(input)
+            if d < 0: d = 0
+            if d >= len(devList): d = len(devList)
+            print "selected device:",input,"\n",printBlkInfo(devInfoList[d][1])
+            try:
+                devList[d].blk().mount()
+            except DeviceInUseWarning:
+                input = removeLineBreak(raw_input("\n=> Selected device is in use, unmount ? [Yn] "))
+                if len(input) == 0:
+                    devList[d].blk().umount()
+        else:
+            print "aborted."
+    
+        time.sleep(1.0)
+        getStatus()
