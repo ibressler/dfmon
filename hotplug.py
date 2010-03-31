@@ -13,6 +13,7 @@ import getopt
 import stat
 import subprocess
 import time
+import hotplug_qt
 
 if sys.platform != "linux2":
     sys.exit("This tool is for Linux only !")
@@ -628,6 +629,7 @@ def consoleMenu():
     
         time.sleep(1.0)
         getStatus()
+        return 0
 
 def cmdName(argv):
     if not argv or len(argv) <= 0:
@@ -644,7 +646,7 @@ def main(argv=None):
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "h", ["help"])
+            opts, args = getopt.getopt(argv[1:], "hc", ["help", "console"])
         except getopt.error, msg:
              raise Usage(msg)
     except Usage, err:
@@ -655,8 +657,11 @@ def main(argv=None):
 #    print "test:", unicode("-h")
     if (unicode("-h"), "") in opts:
         print >>sys.stdout, showUsage(argv)
+        return 0
+    elif (unicode("-c"), "") in opts:
+        return consoleMenu()
     else:
-        consoleMenu()
+        return hotplug_qt.show(argv)
 
 if __name__ == "__main__":
     sys.exit(main())
