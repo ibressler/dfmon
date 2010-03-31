@@ -29,16 +29,6 @@ def getLineFromFile(filename):
     fd.close()
     return text
 
-def formatSize(size):
-    """Formats the given number to human readable size information in bytes"""
-    if not size or size < 0:
-        return "-1"
-    for v, n in zip(sizesValues, sizesNames):
-        short = float(size) / float(v)
-        if short >= 1.0:
-            return "%.2f%s" % (short, n)
-    else:
-        return "%.2f%s" % (short, n)
 
 def callSysCommand(cmdList):
     if not cmdList or len(cmdList) <= 0:
@@ -66,9 +56,6 @@ class MyError(UserWarning):
 
 class DeviceInUseWarning(UserWarning): pass
 
-class Usage(Exception):
-    def __init__(self, msg):
-        self.msg = msg
 
 class Status:
     _osDevPath = "/dev/"

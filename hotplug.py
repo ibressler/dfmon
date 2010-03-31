@@ -3,18 +3,20 @@
 This serves as a long usage message.
 """
 
+import sys
+import os
+import getopt
+
 # todo:
     # truecrypt compatibility
 
-import sys
-import os
-import glob
-import getopt
-import stat
-import subprocess
-import time
+from hotplugCmd import consoleMenu
+from hotplugQt import qtMenu
 
-import hotplug_cmd
+
+class Usage(Exception):
+    def __init__(self, msg):
+        self.msg = msg
 
 def cmdName(argv):
     if not argv or len(argv) <= 0:
@@ -44,9 +46,9 @@ def main(argv=None):
         print >>sys.stdout, showUsage(argv)
         return 0
     elif (unicode("-c"), "") in opts:
-        return hotplug_cmd.consoleMenu()
-#    else:
-#        return hotplug_qt.show(argv)
+        return consoleMenu()
+    else:
+        return qtMenu(argv)
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project hotplug_mgr -->
-<!-- Saved: 2010-03-31, 18:41:10 -->
+<!-- Saved: 2010-03-31, 19:42:36 -->
 <!-- Copyright (C) 2010 ,  -->
 <Project version="4.6">
   <Language></Language>
@@ -14,7 +14,9 @@
   <Sources>
     <Source>hotplug.py</Source>
     <Source>mainwindow.py</Source>
-    <Source>hotplug_qt.py</Source>
+    <Source>hotplugBackend.py</Source>
+    <Source>hotplugCmd.py</Source>
+    <Source>hotplugQt.py</Source>
   </Sources>
   <Forms>
   </Forms>

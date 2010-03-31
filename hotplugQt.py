@@ -5,6 +5,8 @@ import sys
 from PyQt4 import QtCore, QtGui
 from mainwindow import Ui_MainWindow
 
+import hotplugBackend
+
 class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     def __init__(s, parent=None):
@@ -12,7 +14,7 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
         s.setupUi(s)
 
 
-def show(argv):
+def qtMenu(argv):
     app = QtGui.QApplication(argv)
     mw = MainWindow()
     mw.show()

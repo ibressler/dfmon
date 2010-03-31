@@ -1,5 +1,7 @@
 
-from hotplug_backend import MyError,  Status
+import time
+import hotplugBackend
+from hotplugBackend import MyError, DeviceInUseWarning, removeLineBreak
 
 magnitude = long(1024)
 sizesNames = ["P", "T", "G", "M", "K", "B"]
@@ -8,6 +10,17 @@ for i in reversed(range(0,len(sizesNames))):
     sizesValues.append(pow(magnitude,i))
 # output indent level used for console output
 outputIndent = ""
+
+def formatSize(size):
+    """Formats the given number to human readable size information in bytes"""
+    if not size or size < 0:
+        return "-1"
+    for v, n in zip(sizesValues, sizesNames):
+        short = float(size) / float(v)
+        if short >= 1.0:
+            return "%.2f%s" % (short, n)
+    else:
+        return "%.2f%s" % (short, n)
 
 def formatBlkInfo(blkInfo, lvl, prefix):
     if not blkInfo or len(blkInfo) <= 0 or len(blkInfo[0]) < 2:
@@ -63,9 +76,7 @@ def printBlkInfo(blkInfo):
 
 def getStatus():
     hotplugBackend.status.update()
-    global status
-    status = Status()
-    devList = status.dev()
+    devList = hotplugBackend.status.dev()
 #    for d in devList:
 #        print d
     devInfoList = []
