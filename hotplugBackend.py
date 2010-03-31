@@ -11,6 +11,26 @@ blockSize = long(512)
 # we support disks and cdrom/dvd drives
 supportedDeviceTypes = [0, 5]
 
+magnitude = long(1024)
+sizesNames = ["P", "T", "G", "M", "K", "B"]
+sizesValues = []
+for i in reversed(range(0,len(sizesNames))):
+    sizesValues.append(pow(magnitude,i))
+
+# output indent level used for console output
+outputIndent = ""
+
+def formatSize(size):
+    """Formats the given number to human readable size information in bytes"""
+    if not size or size < 0:
+        return "-1"
+    for v, n in zip(sizesValues, sizesNames):
+        short = float(size) / float(v)
+        if short >= 1.0:
+            return "%.2f%s" % (short, n)
+    else:
+        return "%.2f%s" % (short, n)
+
 def makeRel(basePath):
     return lambda absPath: absPath[len(basePath):]
 
@@ -65,19 +85,26 @@ class Status:
     _devList = None # list of devices
 
     def __init__(s):
-
         if sys.platform != "linux2":
             raise MyError("This tool is for Linux only !")
-
         for path in s._osDevPath, s._osSysPath:
             if not os.path.isdir(path):
                 raise MyError("Specified device path '"+path+"' does not exist !")
 
     def update(s):
-        
         s._mountStatus = MountStatus()
         s._swapStatus = SwapStatus()
         s._devList = getScsiDevices(s._osSysPath)
+
+    def getDevices(s):
+        s.update()
+    #    for d in s._devList:
+    #        print d
+        devInfoList = []
+        for dev in s._devList:
+            devInfoList.append(dev.disp())
+            
+        return (s._devList, devInfoList)
 
     def swap(s): return s._swapStatus
     def mount(s): return s._mountStatus
@@ -168,7 +195,6 @@ class BlockDevice:
         if not os.path.exists(s._ioFile):
             raise MyError("Could not find IO device path")
         # determine mount point
-        global status
         s._mountPoint = status.mount().getMountPoint(s._ioFile)
         if s._mountPoint != "swap" and not os.path.isdir(s._mountPoint):
             s._mountPoint = None
@@ -498,8 +524,6 @@ def getIoFilename(devNum):
                     return fullName
     return ""
 
-### end ScsiDevice related stuff
-
 def getScsiDevices(inPath):
     """Returns a list of scsi device descriptors including block devices"""
     if not os.path.isdir(inPath):
@@ -517,5 +541,7 @@ def getScsiDevices(inPath):
             else:
                 devs.append(d)
     return devs
+
+### end ScsiDevice related stuff
 
 status = Status()

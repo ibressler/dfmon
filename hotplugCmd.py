@@ -1,26 +1,7 @@
 
 import time
 import hotplugBackend
-from hotplugBackend import MyError, DeviceInUseWarning, removeLineBreak
-
-magnitude = long(1024)
-sizesNames = ["P", "T", "G", "M", "K", "B"]
-sizesValues = []
-for i in reversed(range(0,len(sizesNames))):
-    sizesValues.append(pow(magnitude,i))
-# output indent level used for console output
-outputIndent = ""
-
-def formatSize(size):
-    """Formats the given number to human readable size information in bytes"""
-    if not size or size < 0:
-        return "-1"
-    for v, n in zip(sizesValues, sizesNames):
-        short = float(size) / float(v)
-        if short >= 1.0:
-            return "%.2f%s" % (short, n)
-    else:
-        return "%.2f%s" % (short, n)
+from hotplugBackend import MyError, DeviceInUseWarning, removeLineBreak, formatSize
 
 def formatBlkInfo(blkInfo, lvl, prefix):
     if not blkInfo or len(blkInfo) <= 0 or len(blkInfo[0]) < 2:
@@ -75,13 +56,7 @@ def printBlkInfo(blkInfo):
     return printTable(formatBlkInfo(blkInfo, 1, "'> "))
 
 def getStatus():
-    hotplugBackend.status.update()
-    devList = hotplugBackend.status.dev()
-#    for d in devList:
-#        print d
-    devInfoList = []
-    for dev in devList:
-        devInfoList.append(dev.disp())
+    devList, devInfoList = hotplugBackend.status.getDevices()
 
     i = 0
     for devInfo in devInfoList:
