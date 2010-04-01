@@ -478,7 +478,7 @@ class ScsiDevice:
         inUseStr = "[    ]"
         if subList[0][0]:
             inUseStr = "[used]"
-        dev = ["["+reduce(lambda a, b: a+":"+b, s._scsiAdr)+"]", inUseStr, s._model]
+        dev = ["["+reduce(lambda a, b: a+":"+b, s._scsiAdr)+"]", subList[0][0], s._model]
         return (dev,subList)
 
 def getBlkDevPath(devPath):
