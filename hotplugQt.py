@@ -11,13 +11,36 @@ from mainwindow import Ui_MainWindow
 import hotplugBackend
 from hotplugBackend import formatSize
 
+class MyItemDelegate(QItemDelegate):
+
+    def __init__(s, parent = None):
+        QItemDelegate.__init__(s, parent)
+        print "init"
+
+    def paint (s, painter, option, index):
+        r = QRect(option.rect)
+        r.setX(0)
+        if index.row() % 2:
+            painter.setBrush(QColor(255, 0, 0, 64))
+        else:
+            painter.setBrush(QColor(0, 255, 0, 64))
+        painter.setPen(Qt.lightGray)
+        painter.drawRect(r)
+        QItemDelegate.paint(s, painter, option, index)
+
 class MainWindow(QMainWindow, Ui_MainWindow):
     _columnCount = None
 
-    def __init__(s, parent=None):
+    def __init__(s, parent = None):
         QMainWindow.__init__(s, parent)
         s.setupUi(s)
         #s.treeWidget.setHeaderHidden(True) # qt 4.4
+        delegate = MyItemDelegate(s.treeWidget.itemDelegate())
+        s.treeWidget.setItemDelegate(delegate)
+        s.treeWidget.setHeaderLabel("available devices")
+        s.treeWidget.header().setDefaultAlignment(Qt.AlignHCenter)
+#        r = qApp.desktop().screenGeometry()
+#        print "screen width:", r.width(), "height:", r.height()
         s.rebuild()
 
     def rebuild(s):
@@ -25,33 +48,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         devList = hotplugBackend.status.getDevices()
         rootItem = s.treeWidget.invisibleRootItem()
         for dev in devList:
-            #name = reduce(lambda a, b: a+", "+b, devInfo[0])
             item = QTreeWidgetItem()
             configScsiDevice(item, dev)
             addBlockDevice(item, dev.blk())
             rootItem.addChild(item)
-        s.treeWidget.setColumnCount(4)
         s.treeWidget.expandAll()
-#        width = 0
-#        for col in range(0, s.treeWidget.columnCount()):
-##            s.treeWidget.resizeColumnToContents(col)
-#            width += s.treeWidget.columnWidth(col)
-#            print "colSH:", s.treeWidget.header().sectionSizeHint(col)
-#            print "c",col,"sizeHintForColumn:", str(s.treeWidget.sizeHintForColumn(col))
-#            print "mode:", str(s.treeWidget.header().resizeMode(col))
-#        s.treeWidget.header().resizeSections(QHeaderView.ResizeToContents)
-#        print "test", s.treeWidget.header().width()
-#        print "mw, size:", str(s.size().width()), "sizeHint:", str(s.sizeHint().width())
-#        print "tw, size:", str(s.treeWidget.size().width()), "sizeHint:", str(s.treeWidget.sizeHint().width())
-#        print "calc width:", width, "tw width:", s.treeWidget.width(), "vis:", s.treeWidget.viewport().width()
-#        mwSize = s.sizeHint()
-#        margin = mwSize.width() - s.treeWidget.sizeHint().width()
-#        print "margin:", margin
-#        margin += s.treeWidget.verticalScrollBar().width()
-#        print "margin:", margin
-#        mwSize.setWidth(width+margin)
-#        print "new width:", mwSize.width()
-        #s.resize(mwSize)
+        
+    def keyPressEvent(s, keyEvent):
+        QMainWindow.keyPressEvent(s, keyEvent)
+        if keyEvent.key() == Qt.Key_Escape:
+            s.close()
 
 def addBlockDevice(rootItem, dev):
     if not rootItem or not dev: return
@@ -66,16 +72,28 @@ def addBlockDevice(rootItem, dev):
 def configScsiDevice(item, dev):
     if not item or not dev: 
         return
-    item.setText(0, dev.scsiStr()+" "+dev.model())
-    item.setText(1, str(dev.inUse()))
+    item.setText(0, dev.scsiStr())
+    toolTip = "not used"
+    if dev.inUse():
+#        item.setBackground(0, Qt.lightGray)
+        toolTip = "in use"
+    toolTip += ", model: " + dev.model()
+    item.setToolTip(0, toolTip)
 
 def configBlockDevice(item, dev):
     if not item or not dev: return
-    col = 0
-    for s in dev.ioFile(), str(dev.inUse()), dev.mountPoint(), formatSize(dev.size()):
-        item.setText(col, s)
-        col = col + 1
-    item.setTextAlignment(col-1, Qt.AlignRight)
+    item.setText(0, dev.ioFile())
+    toolTip = "not used"
+    if dev.inUse():
+#        item.setBackground(0, Qt.lightGray)
+        toolTip = "in use"
+    mp = dev.mountPoint()
+    if len(mp): 
+        toolTip += ", mountpoint: '" + mp + "'"
+    else:
+        toolTip += ", not mounted"
+    toolTip += ", size: "+formatSize(dev.size())
+    item.setToolTip(0, toolTip)
 
 # end MainWindow
 

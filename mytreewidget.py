@@ -12,8 +12,10 @@ class MyTreeWidget(QTreeWidget):
             colWidth += 5
             s.header().resizeSection(col, colWidth)
             widthHint += colWidth + 2 # magic margin between columns
+        widthHint += 2
         if not s.verticalScrollBar().isHidden():
             widthHint += s.verticalScrollBar().width()
         hint = QTreeWidget.sizeHint(s)
         hint.setWidth(widthHint)
+        hint.setHeight(300)
         return hint
