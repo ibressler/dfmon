@@ -3,37 +3,39 @@ import time
 import hotplugBackend
 from hotplugBackend import MyError, DeviceInUseWarning, removeLineBreak, formatSize
 
-def formatBlkInfo(blkInfo, lvl, prefix):
-    if not blkInfo or len(blkInfo) <= 0 or len(blkInfo[0]) < 2:
+def inUseStr(isInUse):
+    if isInUse:
+        return "[used]"
+    else:
+        return "[    ]"
+
+def formatBlkDev(blkDev, lvl, prefix):
+    if not blkDev:
         return []
     line = []
     # add recursion depth dependent prefix
     o = ""
     for i in range(0,lvl): o = o+" "
     # add the description of a single device
-    o = o + prefix + str(blkInfo[0][1])
+    o = o + prefix + blkDev.ioFile()
     line.append(o) # first column
     # add usage status
-    if blkInfo[0][0]:
-        line.append("[used]")
-    else:
-        line.append("[    ]")
-    for i in range(2,len(blkInfo[0])-1): # middle columns
-            line.append(str(blkInfo[0][i]))
-    line.append(formatSize(blkInfo[0][-1])) # last column
+    line.append(inUseStr(blkDev.inUse()))
+    line.append(blkDev.mountPoint())
+    line.append(formatSize(blkDev.size())) # last column
     res = []
     res.append(line) # output is list of lines (which are column lists)
     # add sub devices recursive
     lvl = lvl + len(prefix)
-    for part in blkInfo[1]:
-        res.extend(formatBlkInfo(part, lvl, prefix))
-    for holder in blkInfo[2]:
-        res.extend(formatBlkInfo(holder, lvl, prefix))
+    for part in blkDev.partitions():
+        res.extend(formatBlkDev(part, lvl, prefix))
+    for holder in blkDev.holders():
+        res.extend(formatBlkDev(holder, lvl, prefix))
     lvl = lvl - len(prefix)
     return res
 
 def printTable(listArr):
-    """prints a table with optimal column width"""
+    """Prints a table with optimal column width. Input is a list of rows which are lists of strings"""
     colWidth = []
     # determine optimal width of each column
     for col in range(0,len(listArr[0])):
@@ -52,29 +54,29 @@ def printTable(listArr):
 
     return o
 
-def printBlkInfo(blkInfo):
-    return printTable(formatBlkInfo(blkInfo, 1, "'> "))
+def printBlkDev(blkDev):
+    return printTable(formatBlkDev(blkDev, 1, "'> "))
 
 def getStatus():
-    devList, devInfoList = hotplugBackend.status.getDevices()
-
+    devList = hotplugBackend.status.getDevices()
     i = 0
-    for devInfo in devInfoList:
+    for dev in devList:
         out = "("+str(i) + ")\t"
-        for d in devInfo[0]:
-            out = out + d + "\t"
+        out = out + dev.model() + "\t"
+        out = out + inUseStr(dev.inUse()) + "\t"
+        out = out + dev.scsiStr()
         if i > 0:
             out = "\n" + out
             for k in range(0,len(out)): out = "-" + out
         print out
-        print printBlkInfo(devInfo[1])
+        print printBlkDev(dev.blk())
         i = i + 1
 
-    return (devList, devInfoList)
+    return devList
 
 def consoleMenu():
     try:
-        devList, devInfoList = getStatus()
+        devList = getStatus()
     except MyError, e:
         print "Error initializing system status: ",e
     else:
@@ -83,7 +85,7 @@ def consoleMenu():
             d = int(input)
             if d < 0: d = 0
             if d >= len(devList): d = len(devList)
-            print "selected device:",input,"\n",printBlkInfo(devInfoList[d][1])
+            print "selected device:",input,"\n",printBlkInfo(devList[d].blk())
             try:
                 devList[d].blk().mount()
             except DeviceInUseWarning:

@@ -8,6 +8,7 @@ from PyQt4 import QtCore, QtGui
 from mainwindow import Ui_MainWindow
 
 import hotplugBackend
+from hotplugBackend import formatSize
 
 class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
@@ -19,38 +20,39 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
     def rebuild(s):
         s.treeWidget.clear()
-        devList, devInfoList = hotplugBackend.status.getDevices()
+        devList = hotplugBackend.status.getDevices()
         rootItem = s.treeWidget.invisibleRootItem()
-        for devInfo in devInfoList:
+        for dev in devList:
             #name = reduce(lambda a, b: a+", "+b, devInfo[0])
             item = QtGui.QTreeWidgetItem()
-            configureItem(item, devInfo[0])
-            addSubDeviceItems(item, devInfo[1])
+            configScsiDevice(item, dev)
+            addBlockDevice(item, dev.blk())
             rootItem.addChild(item)
-            if s.treeWidget.columnCount() < len(devInfo[0]):
-                s.treeWidget.setColumnCount(len(devInfo[0]))
-            print "count:", rootItem.childCount()
+            s.treeWidget.setColumnCount(4)
 
-def configureItem(item, columnData):
-    if not item or not columnData or len(columnData) <= 0:
-        return
+def configScsiDevice(item, dev):
+    if not item or not dev: return
     col = 0
-    for d in columnData:
-        item.setText(col, str(d))
+    for s in dev.model(), dev.scsiStr(), str(dev.inUse()):
+        item.setText(col, s)
         col = col + 1
 
-def addSubDeviceItems(rootItem, blkDevInfo):
-    if not rootItem or not blkDevInfo or len(blkDevInfo) < 2:
-        return
+def configBlockDevice(item, dev):
+    if not item or not dev: return
+    col = 0
+    for s in dev.ioFile(), str(dev.inUse()), dev.mountPoint(), formatSize(dev.size()):
+        item.setText(col, s)
+        col = col + 1
+
+def addBlockDevice(rootItem, dev):
+    if not rootItem or not dev: return
     item = QtGui.QTreeWidgetItem()
-    configureItem(item, blkDevInfo[0])
-    print "blkDevInfo:", blkDevInfo
-    for partition in blkDevInfo[1]:
-        addSubDeviceItems(item, partition)
-    for holder in blkDevInfo[2]:
-        addSubDeviceItems(item, holder)
+    configBlockDevice(item, dev)
+    for part in dev.partitions():
+        addBlockDevice(item, part)
+    for holder in dev.holders():
+        addBlockDevice(item, holder)
     rootItem.addChild(item)
-    print "count:", rootItem.childCount()
 
 def qtMenu(argv):
     app = QtGui.QApplication(argv)

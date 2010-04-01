@@ -100,11 +100,7 @@ class Status:
         s.update()
     #    for d in s._devList:
     #        print d
-        devInfoList = []
-        for dev in s._devList:
-            devInfoList.append(dev.disp())
-            
-        return (s._devList, devInfoList)
+        return s._devList
 
     def swap(s): return s._swapStatus
     def mount(s): return s._mountStatus
@@ -141,7 +137,7 @@ class MountStatus:
     """Status of all the filesystems mounted in the system"""
 
     _mountData = None
-    
+
     def __init__(s):
         """Returns the output of the 'mount' command, line by line"""
     # use /etc/mtab
@@ -182,6 +178,35 @@ class BlockDevice:
     _holders = None    # list of BlockDevices
     _mountPoint = None
 
+    # getter methods
+
+    def ioFile(s): 
+        """Returns the absolute filename of the block device file (usually in /dev/)."""
+        if not s._ioFile: return ""
+        return s._ioFile
+
+    def mountPoint(s): 
+        """Returns the absolute path where this device is mounted. Empty if unmounted."""
+        if not s._mountPoint: return ""
+        return s._mountPoint
+
+    def size(s): 
+        """Returns the block devices size in bytes."""
+        if not s._size: return -1
+        return s._size
+
+    def partitions(s): 
+        """Returns the partitions as list of BlockDevices"""
+        if not s._partitions: return []
+        return s._partitions
+
+    def holders(s): 
+        """Returns the holders as list of BlockDevices"""
+        if not s._holders: return []
+        return s._holders
+
+    # setup code
+
     def __init__(s, blkDevName, blkDevPath):
         if not os.path.isdir(blkDevPath):
             raise MyError("Block device path does not exist")
@@ -211,32 +236,18 @@ class BlockDevice:
         if not s.isValid():
             raise MyError("Determined block device information not valid")
 
-    def isInUse(s):
+    def inUse(s):
         if s._holders and len(s._holders) > 0:
             for h in s._holders:
-                if h.isInUse():
+                if h.inUse():
                     return True
         if s._partitions and len(s._partitions) > 0:
             for p in s._partitions:
-                if p.isInUse():
+                if p.inUse():
                     return True
         if s._mountPoint != None:
             return True
         return False
-
-    def disp(s):
-        dispList = [s.isInUse(), s._ioFile, s._mountPoint, s._size]
-        # check holders for being in use
-        holderList = []
-        if s._holders and len(s._holders) > 0:
-            for h in s._holders:
-                holderList.append(h.disp())
-        # check its partitions for being in use
-        partList = []
-        if s._partitions and len(s._partitions) > 0:
-            for p in s._partitions:
-                partList.append(p.disp())
-        return (dispList, partList, holderList)
 
     def getSubDev(s, basePath, matchStr):
         """Returns a list of sub-devices (partitions and holders/dependents)"""
@@ -301,7 +312,7 @@ class BlockDevice:
         """Mount block device"""
         # no partitions
         if len(s._partitions) == 0:
-            if not s.isInUse():
+            if not s.inUse():
                 try:
                     res = callSysCommand(["truecrypt", "--mount", s._ioFile])
                 except MyError, e:
@@ -377,7 +388,27 @@ class ScsiDevice:
     _vendor = None
     _model = None
 
-    def blk(s): return s._dev
+    # getter methods
+
+    def blk(s): 
+        """Returns the associated BlockDevice."""
+        return s._dev
+
+    def scsiStr(s): 
+        """Returns the SCSI address of this device as string."""
+        if not s._scsiAdr: return ""
+        return "["+reduce(lambda a, b: a+":"+b, s._scsiAdr)+"]"
+
+    def model(s): 
+        """Returns the model name of this device."""
+        if not s._model: return ""
+        return s._model
+
+    def inUse(s): 
+        """Tells if this device is in use somehow (has mounted partitions)."""
+        return s._dev.inUse()
+
+    # setup code
 
     def __init__(s, inPath, scsiStr):
         s._scsiAdr = scsiStr.split(":")
@@ -400,7 +431,7 @@ class ScsiDevice:
     def getModel(s):
         if s._model and len(s._model) > 0:
             return s._model
-        s.model = ""
+        s._model = ""
         fn = os.path.join(s._devPath,"model")
         if os.path.isfile(fn):
             txt = getLineFromFile(fn)
@@ -461,25 +492,12 @@ class ScsiDevice:
         if not s.isValid():
             return "not valid!"
         output = str(s._scsiAdr) + \
-                ", in use: " + str(s._dev.isInUse()) + \
+                ", in use: " + str(s._dev.inUse()) + \
                 ", driver: " + str(s._driverName) + \
                 ", vendor: " + str(s._vendor) + \
                 ", model: " + str(s._model) + \
                 "\n" + str(s._dev)
         return output
-
-    def disp(s):
-        """Outputs user-oriented information, less complete, data only"""
-        if not s.isValid():
-            return ([],[])
-        subList = s._dev.disp()
-        if not subList or len(subList) < 1 or len(subList[0]) < 1:
-            return
-        inUseStr = "[    ]"
-        if subList[0][0]:
-            inUseStr = "[used]"
-        dev = ["["+reduce(lambda a, b: a+":"+b, s._scsiAdr)+"]", subList[0][0], s._model]
-        return (dev,subList)
 
 def getBlkDevPath(devPath):
     """Returns the scsi block device path.
