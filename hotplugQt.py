@@ -25,9 +25,9 @@ class MyItemDelegate(QItemDelegate):
             r.setX(0)
             # test if item/device is in use
             if index.data(InUseRole).toBool():
-                painter.setBrush(QColor(255, 0, 0, 64))
+                painter.setBrush(QColor(255, 0, 0, 32))
             else:
-                painter.setBrush(QColor(0, 255, 0, 64))
+                painter.setBrush(QColor(0, 255, 0, 128))
             painter.setPen(Qt.lightGray)
             painter.drawRect(r)
         QItemDelegate.paint(s, painter, option, index)
@@ -72,7 +72,6 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             s.addBlockDevice(dev.blk())
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    _columnCount = None
 
     def __init__(s, parent = None):
         QMainWindow.__init__(s, parent)

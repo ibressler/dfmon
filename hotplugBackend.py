@@ -78,56 +78,56 @@ class MyError(UserWarning):
 class DeviceInUseWarning(UserWarning): pass
 
 class Status:
-    _osDevPath = "/dev/"
-    _osSysPath = "/sys/class/scsi_device/"
-    _mountStatus = None
-    _swapStatus = None
-    _devList = None # list of devices
+    OsDevPath = "/dev/"
+    OsSysPath = "/sys/class/scsi_device/"
+    __mountStatus = None
+    __swapStatus = None
+    __devList = None # list of devices
 
     def __init__(s):
         if sys.platform != "linux2":
             raise MyError("This tool is for Linux only !")
-        for path in s._osDevPath, s._osSysPath:
+        for path in Status.OsDevPath, Status.OsSysPath:
             if not os.path.isdir(path):
                 raise MyError("Specified device path '"+path+"' does not exist !")
 
     def update(s):
-        s._mountStatus = MountStatus()
-        s._swapStatus = SwapStatus()
-        s._devList = getScsiDevices(s._osSysPath)
+        s.__mountStatus = MountStatus()
+        s.__swapStatus = SwapStatus()
+        s.__devList = getScsiDevices(Status.OsSysPath)
 
     def getDevices(s):
         s.update()
-    #    for d in s._devList:
+    #    for d in s.__devList:
     #        print d
-        return s._devList
+        return s.__devList
 
-    def swap(s): return s._swapStatus
-    def mount(s): return s._mountStatus
-    def dev(s): return s._devList
+    def swap(s): return s.__swapStatus
+    def mount(s): return s.__mountStatus
+    def dev(s): return s.__devList
 
 class SwapStatus:
     """Summary of active swap partitions or devices"""
 
-    _swapData = None
-    _devices = None
+    __swapData = None
+    __devices = None
 
     def __init__(s):
         """Returns the output of the 'swapon -s' command, line by line"""
         text = callSysCommand(["swapon","-s"])
-        s._swapData = text.replace("\t"," ").splitlines()
+        s.__swapData = text.replace("\t"," ").splitlines()
         # get a list of swap devices
-        s._devices = []
-        for line in s._swapData:
+        s.__devices = []
+        for line in s.__swapData:
             lineList = line.split()
             if lineList[1] != "partition":
                 continue
-            s._devices.append(lineList[0])
+            s.__devices.append(lineList[0])
 
     def isSwapDev(s, ioFile):
-        if not s._devices or len(s._devices) < 1:
+        if not s.__devices or len(s.__devices) < 1:
             return False
-        resList = filter(strInList(ioFile), s._devices)
+        resList = filter(strInList(ioFile), s.__devices)
         if resList and len(resList) > 0:
             return True
         else:
@@ -136,7 +136,7 @@ class SwapStatus:
 class MountStatus:
     """Status of all the filesystems mounted in the system"""
 
-    _mountData = None
+    __mountData = None
 
     def __init__(s):
         """Returns the output of the 'mount' command, line by line"""
@@ -150,12 +150,12 @@ class MountStatus:
     #    data = map(removeLineBreak, rawData)
     #    print repr(data)
         text = callSysCommand(["mount"])
-        s._mountData = text.splitlines()
+        s.__mountData = text.splitlines()
 
     def getMountPoint(s, ioFile):
-        if not s._mountData or len(s._mountData) < 1:
+        if not s.__mountData or len(s.__mountData) < 1:
             return ""
-        resList = filter(strInList(ioFile+" "), s._mountData)
+        resList = filter(strInList(ioFile+" "), s.__mountData)
         mountPoint = ""
         if resList and len(resList) > 0:
             mountPoint = resList[0].split("on")[1]
@@ -169,19 +169,19 @@ class MountStatus:
 
 class Device:
     Type = 0
-    _sysfsPath = None # path to the device descriptor in /sys/
+    __sysfsPath = None # path to the device descriptor in /sys/
 
     def __init__(s, path):
         path = os.path.realpath(path)
         s.setSysfs(path)
 
     def sysfs(s):
-        return s._sysfsPath
+        return s.__sysfsPath
 
     def setSysfs(s, path):
         if not os.path.isdir(path):
             raise MyError("Device path does not exist: "+path)
-        s._sysfsPath = path
+        s.__sysfsPath = path
     
     def type(s):
         """Returns the Device type (integer number)."""
@@ -189,40 +189,40 @@ class Device:
 
 class BlockDevice(Device):
     Type = 1
-    _devName = None
-    _ioFile = None
-    _devNum = None
-    _size = None
-    _partitions = None # list of BlockDevices
-    _holders = None    # list of BlockDevices
-    _mountPoint = None
+    __devName = None
+    __ioFile = None
+    __devNum = None
+    __size = None
+    __partitions = None # list of BlockDevices
+    __holders = None    # list of BlockDevices
+    __mountPoint = None
 
     # getter methods
 
     def ioFile(s): 
         """Returns the absolute filename of the block device file (usually in /dev/)."""
-        if not s._ioFile: return ""
-        return s._ioFile
+        if not s.__ioFile: return ""
+        return s.__ioFile
 
     def mountPoint(s): 
         """Returns the absolute path where this device is mounted. Empty if unmounted."""
-        if not s._mountPoint: return ""
-        return s._mountPoint
+        if not s.__mountPoint: return ""
+        return s.__mountPoint
 
     def size(s): 
         """Returns the block devices size in bytes."""
-        if not s._size: return -1
-        return s._size
+        if not s.__size: return -1
+        return s.__size
 
     def partitions(s): 
         """Returns the partitions as list of BlockDevices"""
-        if not s._partitions: return []
-        return s._partitions
+        if not s.__partitions: return []
+        return s.__partitions
 
     def holders(s): 
         """Returns the holders as list of BlockDevices"""
-        if not s._holders: return []
-        return s._holders
+        if not s.__holders: return []
+        return s.__holders
 
     def type(s):
         """Returns the Device type (integer number)."""
@@ -233,41 +233,41 @@ class BlockDevice(Device):
     def __init__(s, sysfsPath, blkDevName):
         Device.__init__(s, sysfsPath)
         s.setSysfs(s.sysfs() + os.sep)
-        s._devName = blkDevName
-        s._size = getSize(sysfsPath)
-        if s._size < 0:
+        s.__devName = blkDevName
+        s.__size = getSize(sysfsPath)
+        if s.__size < 0:
             raise MyError("Could not determine block device size")
         s.getDeviceNumber()
-        s._ioFile = getIoFilename(s._devNum)
-        if not os.path.exists(s._ioFile):
+        s.__ioFile = getIoFilename(s.__devNum)
+        if not os.path.exists(s.__ioFile):
             raise MyError("Could not find IO device path")
         # determine mount point
-        s._mountPoint = status.mount().getMountPoint(s._ioFile)
-        if s._mountPoint != "swap" and not os.path.isdir(s._mountPoint):
-            s._mountPoint = None
+        s.__mountPoint = status.mount().getMountPoint(s.__ioFile)
+        if s.__mountPoint != "swap" and not os.path.isdir(s.__mountPoint):
+            s.__mountPoint = None
         # get partitions eventually
-        partitions = s.getSubDev(s.sysfs(), s._devName+"*")
-        s._partitions = []
-        addSubDevices(s._partitions, partitions, s.sysfs())
+        partitions = s.getSubDev(s.sysfs(), s.__devName+"*")
+        s.__partitions = []
+        addSubDevices(s.__partitions, partitions, s.sysfs())
         # get holders eventually
         basePath = s.sysfs()+"holders"+os.sep
         holders = s.getSubDev(basePath, "*")
-        s._holders = []
-        addSubDevices(s._holders, holders, basePath)
+        s.__holders = []
+        addSubDevices(s.__holders, holders, basePath)
         # final verification
         if not s.isValid():
             raise MyError("Determined block device information not valid")
 
     def inUse(s):
-        if s._holders and len(s._holders) > 0:
-            for h in s._holders:
+        if s.__holders and len(s.__holders) > 0:
+            for h in s.__holders:
                 if h.inUse():
                     return True
-        if s._partitions and len(s._partitions) > 0:
-            for p in s._partitions:
+        if s.__partitions and len(s.__partitions) > 0:
+            for p in s.__partitions:
                 if p.inUse():
                     return True
-        if s._mountPoint != None:
+        if s.__mountPoint != None:
             return True
         return False
 
@@ -284,20 +284,20 @@ class BlockDevice(Device):
 
     def __str__(s):
         res = ""
-        for attr in [s._devName, s._ioFile, s._mountPoint, 
-                     formatSize(s._size), s._devNum, s.sysfs()]:
+        for attr in [s.__devName, s.__ioFile, s.__mountPoint, 
+                     formatSize(s.__size), s.__devNum, s.sysfs()]:
             res = res + str(attr) + " "
 
         global outputIndent
         outputIndent = outputIndent + "  "
         prefix = "\n" + outputIndent
-        if s._holders:
+        if s.__holders:
             res = res + prefix + "[holders:]"
-            for h in s._holders:
+            for h in s.__holders:
                 res = res + prefix + str(h)
-        elif s._partitions:
+        elif s.__partitions:
             res = res + prefix + "[partitions:]"
-            for p in s._partitions:
+            for p in s.__partitions:
                 res = res + prefix + str(p)
         else:
             pass
@@ -307,11 +307,11 @@ class BlockDevice(Device):
         return res
 
     def isValid(s):
-        return s._devName and \
+        return s.__devName and \
                 os.path.isdir(s.sysfs()) and \
-                os.path.exists(s._ioFile) and \
-                s._devNum > 0 and \
-                s._size >= 0
+                os.path.exists(s.__ioFile) and \
+                s.__devNum > 0 and \
+                s.__size >= 0
 
     def getSysfsPath(s):
         if not s.isValid():
@@ -320,50 +320,50 @@ class BlockDevice(Device):
             return s.sysfs()
 
     def getDeviceNumber(s):
-        if not s._devNum:
+        if not s.__devNum:
             fn = os.path.join(s.sysfs(),"dev")
             if not os.path.isfile(fn):
                 return -1
             (major, minor) = getLineFromFile(fn).split(":")
             if not major or not minor or major < 0 or minor < 0:
                 return -1
-            s._devNum = os.makedev(int(major), int(minor))
-        return s._devNum
+            s.__devNum = os.makedev(int(major), int(minor))
+        return s.__devNum
 
     def mount(s):
         """Mount block device"""
         # no partitions
-        if len(s._partitions) == 0:
+        if len(s.__partitions) == 0:
             if not s.inUse():
                 try:
-                    res = callSysCommand(["truecrypt", "--mount", s._ioFile])
+                    res = callSysCommand(["truecrypt", "--mount", s.__ioFile])
                 except MyError, e:
-                    print "failed to mount",s._ioFile,":",e
+                    print "failed to mount",s.__ioFile,":",e
             else:
                 raise DeviceInUseWarning()
-        elif len(s._partitions) == 1:
-            s._partitions[0].mount()
+        elif len(s.__partitions) == 1:
+            s.__partitions[0].mount()
         else:
             pass # several partitions, which ? use exception
 
     def umount(s):
         """Unmount block device"""
         # no partitions
-        if len(s._partitions) == 0:
-            if len(s._holders) == 0:
+        if len(s.__partitions) == 0:
+            if len(s.__holders) == 0:
                 # do only for truecrypt devices
                 isTruecrypt = strInList("truecrypt")
-                if isTruecrypt(s._ioFile) and s._mountPoint:
+                if isTruecrypt(s.__ioFile) and s.__mountPoint:
                     try:
-                        res = callSysCommand(["truecrypt", "-d", s._mountPoint])
+                        res = callSysCommand(["truecrypt", "-d", s.__mountPoint])
                     except MyError, e:
-                        print "failed to umount",s._ioFile,":",e
-            elif len(s._holders) == 1:
-                s._holders[0].umount()
+                        print "failed to umount",s.__ioFile,":",e
+            elif len(s.__holders) == 1:
+                s.__holders[0].umount()
             else:
                 pass # several holders, what to do ?
-        elif len(s._partitions) == 1:
-            s._partitions[0].umount() # holders of this ?
+        elif len(s.__partitions) == 1:
+            s.__partitions[0].umount() # holders of this ?
         else:
             pass # several partitions, which ? use exception
 
@@ -404,26 +404,26 @@ def addSubDevices(outList, devNameList, basePath):
 
 class ScsiDevice(Device):
     Type = 2
-    _scsiAdr = None # list with <host> <channel> <id> <lun>
-    _dev = None     # associated Block device object
-    _driverName = None
-    _vendor = None
-    _model = None
+    __scsiAdr = None # list with <host> <channel> <id> <lun>
+    __dev = None     # associated Block device object
+    __driverName = None
+    __vendor = None
+    __model = None
 
     # getter methods
 
     def blk(s): 
         """Returns the associated BlockDevice."""
-        return s._dev
+        return s.__dev
 
     def scsiStr(s): 
         """Returns the SCSI address of this device as string."""
-        if not s._scsiAdr: return ""
-        return "["+reduce(lambda a, b: a+":"+b, s._scsiAdr)+"]"
+        if not s.__scsiAdr: return ""
+        return "["+reduce(lambda a, b: a+":"+b, s.__scsiAdr)+"]"
 
     def inUse(s): 
         """Tells if this device is in use somehow (has mounted partitions)."""
-        return s._dev.inUse()
+        return s.__dev.inUse()
 
     def type(s):
         """Returns the Device type (integer number)."""
@@ -433,7 +433,7 @@ class ScsiDevice(Device):
 
     def __init__(s, path, scsiStr):
         Device.__init__(s, os.path.join(path, scsiStr, "device"))
-        s._scsiAdr = scsiStr.split(":")
+        s.__scsiAdr = scsiStr.split(":")
         if not s.isSupported():
             # throw exception here
             raise MyError("Device type not supported")
@@ -441,7 +441,7 @@ class ScsiDevice(Device):
         if not name or not path:
             # throw exception
             raise MyError("Could not determine block device path in /sys/")
-        s._dev = BlockDevice(path, name)
+        s.__dev = BlockDevice(path, name)
         s.driver()
         s.vendor()
         s.model()
@@ -450,31 +450,31 @@ class ScsiDevice(Device):
             raise MyError("Determined Scsi device information not valid")
 
     def model(s):
-        if s._model and len(s._model) > 0:
-            return s._model
-        s._model = ""
+        if s.__model and len(s.__model) > 0:
+            return s.__model
+        s.__model = ""
         fn = os.path.join(s.sysfs(),"model")
         if os.path.isfile(fn):
             txt = getLineFromFile(fn)
             if len(txt) > 0:
-                s._model = txt
-        return s._model
+                s.__model = txt
+        return s.__model
 
     def vendor(s):
-        if s._vendor and len(s._vendor) > 0:
-            return s._vendor
-        s._vendor = ""
+        if s.__vendor and len(s.__vendor) > 0:
+            return s.__vendor
+        s.__vendor = ""
         fn = os.path.join(s.sysfs(),"vendor")
         if os.path.isfile(fn):
             txt = getLineFromFile(fn)
             if len(txt) > 0:
-                s._vendor = txt
-        return s._vendor
+                s.__vendor = txt
+        return s.__vendor
 
     def driver(s):
-        if s._driverName and len(s._driverName) > 0:
-            return s._driverName
-        sysfsPath = s._dev.getSysfsPath()
+        if s.__driverName and len(s.__driverName) > 0:
+            return s.__driverName
+        sysfsPath = s.__dev.getSysfsPath()
         if not os.path.isdir(sysfsPath):
             return ""
         path = os.path.realpath(os.path.join(sysfsPath,"device"))
@@ -483,8 +483,8 @@ class ScsiDevice(Device):
         (path,tail) = os.path.split(path)
         path = os.path.realpath(os.path.join(path,"driver"))
         (path,tail) = os.path.split(path)
-        s._driverName = tail
-        return s._driverName
+        s.__driverName = tail
+        return s.__driverName
 
     def isSupported(s):
         fn = os.path.join(s.sysfs(),"type")
@@ -501,21 +501,21 @@ class ScsiDevice(Device):
             return False
 
     def isValid(s):
-        return len(s._scsiAdr) == 4 and \
+        return len(s.__scsiAdr) == 4 and \
                 s.sysfs() and os.path.isdir(s.sysfs()) and \
-                s._dev.isValid()
+                s.__dev.isValid()
         # test for every blk device being valid
 
     def __str__(s):
         """Outputs full detailed information about this devices"""
         if not s.isValid():
             return "not valid!"
-        output = str(s._scsiAdr) + \
-                ", in use: " + str(s._dev.inUse()) + \
-                ", driver: " + str(s._driverName) + \
-                ", vendor: " + str(s._vendor) + \
-                ", model: " + str(s._model) + \
-                "\n" + str(s._dev)
+        output = str(s.__scsiAdr) + \
+                ", in use: " + str(s.__dev.inUse()) + \
+                ", driver: " + str(s.__driverName) + \
+                ", vendor: " + str(s.__vendor) + \
+                ", model: " + str(s.__model) + \
+                "\n" + str(s.__dev)
         return output
 
 def getBlkDevPath(devPath):
@@ -538,7 +538,7 @@ def getIoFilename(devNum):
     if not devNum or devNum < 0:
         return ""
     # get all device files first
-    for root, dirs, files in os.walk(Status._osDevPath):
+    for root, dirs, files in os.walk(Status.OsDevPath):
         # ignore directories with leading dot
         for i in reversed(range(0,len(dirs))):
             if dirs[i][0] == ".":
