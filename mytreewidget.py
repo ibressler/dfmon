@@ -2,15 +2,12 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 class MyTreeWidget(QTreeWidget):
-    
+
     def __init__(s, parent=None):
         QTreeWidget.__init__(s, parent)
         # connect some signals/slots
-        QObject.connect(
-                        s, SIGNAL("customContextMenuRequested(const QPoint&)"), \
-                        s.contextMenu)
-        QMetaObject.connectSlotsByName(s)
-    
+        QObject.connect(s, SIGNAL("customContextMenuRequested(const QPoint&)"), s.contextMenu)
+
     def sizeHint(s):
         """Show all columns (no horizontal scrollbar)"""
         widthHint = 0
@@ -26,13 +23,13 @@ class MyTreeWidget(QTreeWidget):
         hint.setWidth(widthHint)
         hint.setHeight(300)
         return hint
-        
+
     def contextMenu(s, pos):
         item = s.itemAt(pos)
-        print "item:", str(item.dev())
         menu = QMenu(s)
-        testAction = QAction("blubb", menu)
-        menu.addAction(testAction)
+        mountAction = QAction("mount", menu)
+        QObject.connect(mountAction, SIGNAL("triggered(bool)"), item.mountAction)
+        menu.addAction(mountAction)
         # fix popup menu position
         pos = s.mapToGlobal(pos)
         pos.setY(pos.y() + s.header().sizeHint().height())

@@ -5,6 +5,10 @@ import stat
 import subprocess
 import time
 
+# required system paths
+OsDevPath = "/dev/"
+OsSysPath = "/sys/class/scsi_device/"
+
 # were does this come from, how to determine this value ?
 blockSize = long(512)
 
@@ -73,10 +77,9 @@ class MyError(UserWarning):
         return repr(s.msg)
 
 class DeviceInUseWarning(UserWarning): pass
+class DeviceHasPartitions(UserWarning): pass
 
 class Status:
-    OsDevPath = "/dev/"
-    OsSysPath = "/sys/class/scsi_device/"
     __mountStatus = None
     __swapStatus = None
     __devList = None # list of devices
@@ -84,19 +87,17 @@ class Status:
     def __init__(s):
         if sys.platform != "linux2":
             raise MyError("This tool supports Linux only (yet).")
-        for path in Status.OsDevPath, Status.OsSysPath:
+        for path in OsDevPath, OsSysPath:
             if not os.path.isdir(path):
                 raise MyError("Specified device path '"+path+"' does not exist !")
 
     def update(s):
         s.__mountStatus = MountStatus()
         s.__swapStatus = SwapStatus()
-        s.__devList = getScsiDevices(Status.OsSysPath)
+        s.__devList = getScsiDevices(OsSysPath)
 
     def getDevices(s):
         s.update()
-    #    for d in s.__devList:
-    #        print d
         return s.__devList
 
     def swap(s): return s.__swapStatus
@@ -155,7 +156,6 @@ class MountStatus:
         return mountPoint
 
 class Device:
-    Type = 0
     __sysfsPath = None # path to the device descriptor in /sys/
 
     def __init__(s, path):
@@ -169,13 +169,24 @@ class Device:
         if not os.path.isdir(path):
             raise MyError("Device path does not exist: "+path)
         s.__sysfsPath = path
-    
-    def type(s):
-        """Returns the Device type (integer number)."""
-        return Device.Type
+
+    def isBlock(s):
+        """Returns True if the Device is a BlockDevice."""
+        return False
+
+    def isScsi(s):
+        """Returns True if the Device is a ScsiDevice."""
+        return False
+
+    def shortName(s):
+        """Returns the short device name for GUI display."""
+        return ""
+
+    def fullName(s):
+        """Returns the complete device name for informative uses."""
+        return ""
 
 class BlockDevice(Device):
-    Type = 1
     __devName = None
     __ioFile = None
     __devNum = None
@@ -185,6 +196,12 @@ class BlockDevice(Device):
     __mountPoint = None
 
     # getter methods
+
+    def shortName(s):
+        return os.path.basename(s.ioFile())
+
+    def fullName(s):
+        return s.ioFile()
 
     def ioFile(s): 
         """Returns the absolute filename of the block device file (usually in /dev/)."""
@@ -211,9 +228,7 @@ class BlockDevice(Device):
         if not s.__holders: return []
         return s.__holders
 
-    def type(s):
-        """Returns the Device type (integer number)."""
-        return BlockDevice.Type
+    def isBlock(s): return True
 
     # setup code
 
@@ -325,13 +340,13 @@ class BlockDevice(Device):
                 try:
                     res = callSysCommand(["truecrypt", "--mount", s.__ioFile])
                 except MyError, e:
-                    print "failed to mount",s.__ioFile,":",e
+                    raise MyError("failed to mount "+s.ioFile()+": "+str(e))
             else:
                 raise DeviceInUseWarning()
         elif len(s.__partitions) == 1:
             s.__partitions[0].mount()
         else:
-            pass # several partitions, which ? use exception
+            raise DeviceHasPartitions()
 
     def umount(s):
         """Unmount block device"""
@@ -390,7 +405,6 @@ def addSubDevices(outList, devNameList, basePath):
 ### end BlockDevice related stuff
 
 class ScsiDevice(Device):
-    Type = 2
     __scsiAdr = None # list with <host> <channel> <id> <lun>
     __dev = None     # associated Block device object
     __driverName = None
@@ -398,6 +412,12 @@ class ScsiDevice(Device):
     __model = None
 
     # getter methods
+
+    def shortName(s):
+        return s.scsiStr()
+
+    def fullName(s):
+        return s.scsiStr()+" "+s.model()
 
     def blk(s): 
         """Returns the associated BlockDevice."""
@@ -412,10 +432,8 @@ class ScsiDevice(Device):
         """Tells if this device is in use somehow (has mounted partitions)."""
         return s.__dev.inUse()
 
-    def type(s):
-        """Returns the Device type (integer number)."""
-        return ScsiDevice.Type
-        
+    def isScsi(s): return True
+
     # setup code
 
     def __init__(s, path, scsiStr):
@@ -525,7 +543,7 @@ def getIoFilename(devNum):
     if not devNum or devNum < 0:
         return ""
     # get all device files first
-    for root, dirs, files in os.walk(Status.OsDevPath):
+    for root, dirs, files in os.walk(OsDevPath):
         # ignore directories with leading dot
         for i in reversed(range(0,len(dirs))):
             if dirs[i][0] == ".":
