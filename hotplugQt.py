@@ -13,6 +13,9 @@ from hotplugBackend import formatSize, ScsiDevice, BlockDevice
 
 InUseRole = Qt.UserRole
 
+def tr(s):
+   return QCoreApplication.translate(None, s)
+
 class MyItemDelegate(QItemDelegate):
 
     def __init__(s, parent = None):
@@ -38,24 +41,23 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         return s.__dev[0]
 
     def mountAction(s, checked = False):
-        print "MyTreeWidgetItem.mountAction:", s.dev().fullName()
         try:
             if s.dev().isBlock(): 
                 s.dev().mount()
             elif s.dev().isScsi(): 
                 s.dev().blk().mount()
         except hotplugBackend.DeviceInUseWarning, w:
-            QMessageBox.warning(s.treeWidget(), "Device in Use", \
-                                "The selected device is already in use, I can't mount it.", \
+            QMessageBox.warning(s.treeWidget(), tr("Device in Use"), 
+                                tr("The selected device is already in use, I can't mount it."), 
                                 QMessageBox.Ok, QMessageBox.Ok)
         except hotplugBackend.DeviceHasPartitions, w:
-            QMessageBox.warning(s.treeWidget(), "Device contains Partitions", \
-                                "The selected device contains several partitions.\n"+\
-                                "Please select one directly.", \
+            QMessageBox.warning(s.treeWidget(), tr("Device contains Partitions"), 
+                                tr("The selected device contains several partitions.\n")+
+                                tr("Please select one directly."), 
                                 QMessageBox.Ok, QMessageBox.Ok)
         except hotplugBackend.MyError, e:
-            QMessageBox.critical(s.treeWidget(), "Mount Error", \
-                                "Could not mount the selected device:\n"+str(e), \
+            QMessageBox.critical(s.treeWidget(), tr("Mount Error"), 
+                                tr("Could not mount the selected device:\n")+str(e), 
                                 QMessageBox.Ok, QMessageBox.Ok)
 
     # setup methods
@@ -80,24 +82,22 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         if not s.dev(): return
         s.setText(0, s.dev().shortName())
         # decide usage status
-        toolTip = "[not used]"
+        toolTip = "["+tr("not used")+"]"
         if s.dev().inUse():
-            toolTip = "[in use]"
-        statusTip = toolTip
+            toolTip = "["+tr("in use")+"]"
+        statusTip = ""+toolTip
         # generate extended device type dependent info
         toolTip += " " + s.dev().fullName()
         if s.dev().isBlock():
             if s.dev().inUse():
                 mp = s.dev().mountPoint()
                 if len(mp): 
-                    toolTip += " [mountpoint: " + mp + "]"
+                    toolTip += " ["+tr("mountpoint")+": " + mp + "]"
                 else:
-                    toolTip += " [not mounted]"
-            sizeStr = " size: "+formatSize(s.dev().size())
+                    toolTip += " ["+tr("not mounted")+"]"
+            sizeStr = " "+tr("size")+": "+formatSize(s.dev().size())
             toolTip += sizeStr
             statusTip += sizeStr
-        elif s.dev().isScsi():
-            statusTip += " " + s.dev().model()
         # finally set the extended info
         s.setToolTip(0, toolTip)
         s.setStatusTip(0, statusTip)
@@ -113,8 +113,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #s.treeWidget.setHeaderHidden(True) # qt 4.4
         delegate = MyItemDelegate(s.treeWidget.itemDelegate())
         s.treeWidget.setItemDelegate(delegate)
-        s.treeWidget.setHeaderLabel("available devices")
-        s.treeWidget.header().setDefaultAlignment(Qt.AlignHCenter)
+        headerItem = s.treeWidget.headerItem()
+        headerItem.setText(0,tr("available devices"))
+        headerItem.setTextAlignment(0, Qt.AlignHCenter)
+        headerItem.setToolTip(0,s.windowTitle()
+                              +tr("\nFor feedback and contributions, please visit URL."))
         s.treeWidget.setMouseTracking(True)
 #        r = qApp.desktop().screenGeometry()
 #        print "screen width:", r.width(), "height:", r.height()

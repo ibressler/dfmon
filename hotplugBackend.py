@@ -51,23 +51,6 @@ def getLineFromFile(filename):
     fd.close()
     return text
 
-
-def callSysCommand(cmdList):
-    if not cmdList or len(cmdList) <= 0:
-        return ""
-    cmd = subprocess.Popen(cmdList, bufsize=-1, \
-                           stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    time.sleep(0.1) # wait some time for the usual command to finish
-    retCode = cmd.poll()
-#    if retCode == None:
-#        mountCmd.kill() # probably blocked by hardware, avoid stalling
-    (stdout, stderr) = cmd.communicate()
-    if retCode != 0 and retCode != None:
-        raise MyError("Failed to run command '"+
-                      cmdList[0]+"', returned: "+ 
-                      str(retCode)+"\n"+stderr)
-    return stdout
-
 class MyError(UserWarning):
     def __init__(s, msg):
         s.msg = msg
@@ -83,6 +66,8 @@ class Status:
     __mountStatus = None
     __swapStatus = None
     __devList = None # list of devices
+    __lastCmd = None # Popen object of the last command called
+    __lastCmdList = None # command string list of the last command
 
     def __init__(s):
         if sys.platform != "linux2":
@@ -102,6 +87,37 @@ class Status:
 
     def swap(s): return s.__swapStatus
     def mount(s): return s.__mountStatus
+    
+    def callSysCommand(s, cmdList):
+        if not cmdList or len(cmdList) <= 0:
+            return
+        try:
+            s.__lastCmd = subprocess.Popen(cmdList, bufsize=-1, 
+                               stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        except Exception, e:
+            raise MyError("Failed to run command: '"+
+                                    " ".join(cmdList)+"': "+str(e))
+            s.__lastCmdList = cmdList
+
+    def lastCmdOutput(s):
+        "On success, returns a list of output lines."
+        if not s.__lastCmd: 
+            return []
+        #while s.__lastCmd.returncode == None:
+        time.sleep(0.1) # wait some time for the usual command to finish
+    #    if retCode == None:
+    #        mountCmd.kill() # probably blocked by hardware, avoid stalling, v2.6
+        if s.__lastCmd.returncode != None and s.__lastCmd.returncode != 0:
+            stderr = []
+            if s.__lastCmd.stderr != None:
+                stderr = s.__lastCmd.stderr.readlines()
+            raise MyError("Failed to run command '"+
+                          " ".join(s.__lastCmdList)+"' (returned: "+ 
+                          str(s.__lastCmd.returncode)+"):\n"+"\n".join(stderr))
+        stdout = []
+        if s.__lastCmd.stdout != None:
+                stdout = s.__lastCmd.stdout.readlines()
+        return stdout
 
 class SwapStatus:
     """Summary of active swap partitions or devices"""
@@ -111,12 +127,12 @@ class SwapStatus:
 
     def __init__(s):
         """Returns the output of the 'swapon -s' command, line by line"""
-        text = callSysCommand(["swapon","-s"])
-        s.__swapData = text.replace("\t"," ").splitlines()
+        status.callSysCommand(["swapon","-s"])
+        s.__swapData = status.lastCmdOutput()
         # get a list of swap devices
         s.__devices = []
         for line in s.__swapData:
-            lineList = line.split()
+            lineList = line.replace("\t"," ").split()
             if lineList[1] != "partition":
                 continue
             s.__devices.append(lineList[0])
@@ -137,8 +153,8 @@ class MountStatus:
 
     def __init__(s):
         """Returns the output of the 'mount' command, line by line"""
-        text = callSysCommand(["mount"])
-        s.__mountData = text.splitlines()
+        status.callSysCommand(["mount"])
+        s.__mountData = status.lastCmdOutput()
 
     def getMountPoint(s, ioFile):
         if not s.__mountData or len(s.__mountData) < 1:
@@ -338,7 +354,7 @@ class BlockDevice(Device):
         if len(s.__partitions) == 0:
             if not s.inUse():
                 try:
-                    res = callSysCommand(["truecrypt", "--mount", s.__ioFile])
+                    status.callSysCommand(["truecrypt", "--mount", s.__ioFile])
                 except MyError, e:
                     raise MyError("failed to mount "+s.ioFile()+": "+str(e))
             else:
@@ -357,7 +373,7 @@ class BlockDevice(Device):
                 isTruecrypt = strInList("truecrypt")
                 if isTruecrypt(s.__ioFile) and s.__mountPoint:
                     try:
-                        res = callSysCommand(["truecrypt", "-d", s.__mountPoint])
+                        status.callSysCommand(["truecrypt", "-d", s.__mountPoint])
                     except MyError, e:
                         print "failed to umount",s.__ioFile,":",e
             elif len(s.__holders) == 1:

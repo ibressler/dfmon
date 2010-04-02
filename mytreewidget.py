@@ -1,6 +1,9 @@
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
+def tr(s):
+   return QCoreApplication.translate(None, s)
+
 class MyTreeWidget(QTreeWidget):
 
     def __init__(s, parent=None):
@@ -27,7 +30,7 @@ class MyTreeWidget(QTreeWidget):
     def contextMenu(s, pos):
         item = s.itemAt(pos)
         menu = QMenu(s)
-        mountAction = QAction("mount", menu)
+        mountAction = QAction(tr("mount with truecrypt"), menu)
         QObject.connect(mountAction, SIGNAL("triggered(bool)"), item.mountAction)
         menu.addAction(mountAction)
         # fix popup menu position

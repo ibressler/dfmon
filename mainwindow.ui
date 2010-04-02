@@ -5,19 +5,14 @@
    <string>Hotplug Manager</string>
   </property>
   <widget class="QWidget" name="centralwidget" >
-   <property name="geometry" >
-    <rect>
-     <x>0</x>
-     <y>34</y>
-     <width>274</width>
-     <height>210</height>
-    </rect>
-   </property>
    <layout class="QVBoxLayout" name="verticalLayout" >
     <item>
      <widget class="MyTreeWidget" name="treeWidget" >
       <property name="contextMenuPolicy" >
        <enum>Qt::CustomContextMenu</enum>
+      </property>
+      <property name="editTriggers" >
+       <set>QAbstractItemView::NoEditTriggers</set>
       </property>
       <column>
        <property name="text" >
@@ -28,26 +23,8 @@
     </item>
    </layout>
   </widget>
-  <widget class="QMenuBar" name="menubar" >
-   <property name="geometry" >
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>274</width>
-     <height>34</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QStatusBar" name="statusbar" >
-   <property name="geometry" >
-    <rect>
-     <x>0</x>
-     <y>244</y>
-     <width>274</width>
-     <height>27</height>
-    </rect>
-   </property>
-  </widget>
+  <widget class="QMenuBar" name="menubar" />
+  <widget class="QStatusBar" name="statusbar" />
  </widget>
  <customwidgets>
   <customwidget>
