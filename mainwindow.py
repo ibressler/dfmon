@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'mainwindow.ui'
 #
-# Created: Thu Apr  1 20:14:59 2010
+# Created: Fri Apr  2 02:15:35 2010
 #      by: PyQt4 UI code generator 4.3.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -21,6 +21,7 @@ class Ui_MainWindow(object):
         self.vboxlayout.setObjectName("vboxlayout")
 
         self.treeWidget = MyTreeWidget(self.centralwidget)
+        self.treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.treeWidget.setObjectName("treeWidget")
         self.vboxlayout.addWidget(self.treeWidget)
         MainWindow.setCentralWidget(self.centralwidget)

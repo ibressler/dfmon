@@ -17,7 +17,6 @@ class MyItemDelegate(QItemDelegate):
 
     def __init__(s, parent = None):
         QItemDelegate.__init__(s, parent)
-        print "init"
 
     def paint (s, painter, option, index):
         if not (QStyle.State_Selected & option.state):
@@ -33,9 +32,17 @@ class MyItemDelegate(QItemDelegate):
         QItemDelegate.paint(s, painter, option, index)
 
 class MyTreeWidgetItem(QTreeWidgetItem):
+    __dev = None # one element list (&reference ?)
+    
+    def dev(s):
+        return s.__dev[0]
+    
     def __init__(s, dev):
         QTreeWidgetItem.__init__(s, None)
-        s.configureDevice(dev)
+        #s.__dev = dev # this produces cascaded instance duplication somehow
+        # don't want to copy the complete Device incl. sublists
+        s.__dev = [dev]
+        s.configure()
 
     def addBlockDevice(s, dev):
         if not dev: return
@@ -46,30 +53,30 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             item.addBlockDevice(holder)
         s.addChild(item)
     
-    def configureDevice(s, dev):
-        if not dev: return
+    def configure(s):
+        if not s.dev(): return
         # decide usage status
         toolTip = "[not used]"
-        if dev.inUse():
+        if s.dev().inUse():
             toolTip = "[in use]"
         # generate extended device type dependent info
-        if dev.type() == ScsiDevice.Type:
-            s.setText(0, dev.scsiStr())
-            toolTip += " model: " + dev.model()
-        elif dev.type() == BlockDevice.Type:
-            s.setText(0, dev.ioFile())
-            mp = dev.mountPoint()
+        if s.dev().type() == ScsiDevice.Type:
+            s.setText(0, s.dev().scsiStr())
+            toolTip += " model: " + s.dev().model()
+        elif s.dev().type() == BlockDevice.Type:
+            s.setText(0, s.dev().ioFile())
+            mp = s.dev().mountPoint()
             if len(mp): 
-                toolTip += " mountpoint: '" + mp + "'"
+                toolTip += " [mountpoint: " + mp + "]"
             else:
-                toolTip += " not mounted"
-            toolTip += ", size: "+formatSize(dev.size())
+                toolTip += " [not mounted]"
+            toolTip += " size: "+formatSize(s.dev().size())
         # finally set the extended info
         s.setToolTip(0, toolTip)
         s.setStatusTip(0, toolTip)
-        s.setData(0, InUseRole, QVariant(dev.inUse())) # for the delegate
-        if dev.type() == ScsiDevice.Type:
-            s.addBlockDevice(dev.blk())
+        s.setData(0, InUseRole, QVariant(s.dev().inUse())) # for the delegate
+        if s.dev().type() == ScsiDevice.Type:
+            s.addBlockDevice(s.dev().blk())
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 
@@ -88,9 +95,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def rebuild(s):
         s.treeWidget.clear()
-        devList = hotplugBackend.status.getDevices()
         rootItem = s.treeWidget.invisibleRootItem()
-        for dev in devList:
+        for dev in hotplugBackend.status.getDevices():
             item = MyTreeWidgetItem(dev)
             rootItem.addChild(item)
         s.treeWidget.expandAll()
@@ -99,7 +105,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QMainWindow.keyPressEvent(s, keyEvent)
         if keyEvent.key() == Qt.Key_Escape:
             s.close()
-
 
 # end MainWindow
 

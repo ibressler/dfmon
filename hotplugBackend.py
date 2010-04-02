@@ -32,9 +32,6 @@ def formatSize(size):
     else:
         return "%.2f%s" % (short, n)
 
-def makeRel(basePath):
-    return lambda absPath: absPath[len(basePath):]
-
 def strInList(searchStr):
     return lambda line: line.find(searchStr) >= 0
 
@@ -86,7 +83,7 @@ class Status:
 
     def __init__(s):
         if sys.platform != "linux2":
-            raise MyError("This tool is for Linux only !")
+            raise MyError("This tool supports Linux only (yet).")
         for path in Status.OsDevPath, Status.OsSysPath:
             if not os.path.isdir(path):
                 raise MyError("Specified device path '"+path+"' does not exist !")
@@ -104,7 +101,6 @@ class Status:
 
     def swap(s): return s.__swapStatus
     def mount(s): return s.__mountStatus
-    def dev(s): return s.__devList
 
 class SwapStatus:
     """Summary of active swap partitions or devices"""
@@ -140,15 +136,6 @@ class MountStatus:
 
     def __init__(s):
         """Returns the output of the 'mount' command, line by line"""
-    # use /etc/mtab
-    #    fn = os.path.join(os.sep,"etc","mtab")
-    #    if not os.path.isfile(fn):
-    #        return []
-    #    fd = open(fn, 'r')
-    #    rawData = fd.readlines()
-    #    fd.close()
-    #    data = map(removeLineBreak, rawData)
-    #    print repr(data)
         text = callSysCommand(["mount"])
         s.__mountData = text.splitlines()
 
@@ -279,7 +266,7 @@ class BlockDevice(Device):
         if not entries: 
             return []
         # return a list of the holder names relative to the input block path
-        relList = map(makeRel(basePath), entries)
+        relList = [ absPath[len(basePath):] for absPath in entries ]
         return relList
 
     def __str__(s):
