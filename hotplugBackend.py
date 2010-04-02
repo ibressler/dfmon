@@ -95,8 +95,8 @@ class Status:
             s.__lastCmd = subprocess.Popen(cmdList, bufsize=-1, 
                                stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         except Exception, e:
-            raise MyError("Failed to run command: '"+
-                                    " ".join(cmdList)+"': "+str(e))
+            raise MyError("Failed to run command: \n'"+
+                                    " ".join(cmdList)+"': \n"+str(e))
             s.__lastCmdList = cmdList
 
     def lastCmdOutput(s):
@@ -111,7 +111,7 @@ class Status:
             stderr = []
             if s.__lastCmd.stderr != None:
                 stderr = s.__lastCmd.stderr.readlines()
-            raise MyError("Failed to run command '"+
+            raise MyError("Failed to run command \n'"+
                           " ".join(s.__lastCmdList)+"' (returned: "+ 
                           str(s.__lastCmd.returncode)+"):\n"+"\n".join(stderr))
         stdout = []
@@ -259,6 +259,12 @@ class BlockDevice(Device):
         s.__ioFile = getIoFilename(s.__devNum)
         if not os.path.exists(s.__ioFile):
             raise MyError("Could not find IO device path")
+        s.update()
+        # final verification
+        if not s.isValid():
+            raise MyError("Determined block device information not valid")
+
+    def update(s):
         # determine mount point
         s.__mountPoint = status.mount().getMountPoint(s.__ioFile)
         if s.__mountPoint != "swap" and not os.path.isdir(s.__mountPoint):
@@ -272,10 +278,7 @@ class BlockDevice(Device):
         holders = s.getSubDev(basePath, "*")
         s.__holders = []
         addSubDevices(s.__holders, holders, basePath)
-        # final verification
-        if not s.isValid():
-            raise MyError("Determined block device information not valid")
-
+        
     def inUse(s):
         if s.__holders and len(s.__holders) > 0:
             for h in s.__holders:
@@ -356,34 +359,33 @@ class BlockDevice(Device):
                 try:
                     status.callSysCommand(["truecrypt", "--mount", s.__ioFile])
                 except MyError, e:
-                    raise MyError("failed to mount "+s.ioFile()+": "+str(e))
+                    raise MyError("Failed to mount "+s.ioFile()+": "+str(e))
             else:
                 raise DeviceInUseWarning()
         elif len(s.__partitions) == 1:
             s.__partitions[0].mount()
         else:
             raise DeviceHasPartitions()
+        s.update()
 
     def umount(s):
         """Unmount block device"""
-        # no partitions
-        if len(s.__partitions) == 0:
-            if len(s.__holders) == 0:
-                # do only for truecrypt devices
-                isTruecrypt = strInList("truecrypt")
-                if isTruecrypt(s.__ioFile) and s.__mountPoint:
-                    try:
-                        status.callSysCommand(["truecrypt", "-d", s.__mountPoint])
-                    except MyError, e:
-                        print "failed to umount",s.__ioFile,":",e
-            elif len(s.__holders) == 1:
-                s.__holders[0].umount()
+        for part in s.__partitions:
+            part.umount()
+        for holder in s.__holders:
+            holder.umount()
+        if not s.inUse():
+            return
+        # do only for truecrypt devices
+        isTruecrypt = strInList("truecrypt")
+        try:
+            if isTruecrypt(s.__ioFile):
+                status.callSysCommand(["truecrypt", "-d", s.__mountPoint])
             else:
-                pass # several holders, what to do ?
-        elif len(s.__partitions) == 1:
-            s.__partitions[0].umount() # holders of this ?
-        else:
-            pass # several partitions, which ? use exception
+                status.callSysCommand(["umount", s.__mountPoint])
+        except MyError, e:
+            raise MyError("Failed to unmount "+s.ioFile()+": "+str(e))
+        s.update()
 
 def getSize(sysfsPath):
     """Returns the overall numerical size of a block device.
@@ -449,6 +451,8 @@ class ScsiDevice(Device):
         return s.__dev.inUse()
 
     def isScsi(s): return True
+    def mount(s): return s.blk().mount()
+    def umount(s): return s.blk().umount()
 
     # setup code
 
