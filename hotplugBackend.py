@@ -53,14 +53,24 @@ def getLineFromFile(filename):
 
 class MyError(UserWarning):
     def __init__(s, msg):
+        UserWarning.__init__(s)
         s.msg = msg
     def __str__(s):
         return str(s.msg)
     def __repr__(s):
         return repr(s.msg)
 
+class CmdReturnCodeError(UserWarning):
+    def __init__(s, returnCode, stderr):
+        UserWarning.__init__(s)
+        s.returnCode = returnCode
+        s.stderr = stderr
+    def __str__(s):
+        return "CmdReturnCodeError: "+str(s.returnCode)
+
 class DeviceInUseWarning(UserWarning): pass
 class DeviceHasPartitions(UserWarning): pass
+class MissingPrivileges(UserWarning): pass
 
 class Status:
     __mountStatus = None
@@ -87,7 +97,7 @@ class Status:
 
     def swap(s): return s.__swapStatus
     def mount(s): return s.__mountStatus
-    
+
     def callSysCommand(s, cmdList):
         if not cmdList or len(cmdList) <= 0:
             return
@@ -97,6 +107,7 @@ class Status:
         except Exception, e:
             raise MyError("Failed to run command: \n'"+
                                     " ".join(cmdList)+"': \n"+str(e))
+        finally:
             s.__lastCmdList = cmdList
 
     def lastCmdOutput(s):
@@ -107,13 +118,13 @@ class Status:
         time.sleep(0.1) # wait some time for the usual command to finish
     #    if retCode == None:
     #        mountCmd.kill() # probably blocked by hardware, avoid stalling, v2.6
-        if s.__lastCmd.returncode != None and s.__lastCmd.returncode != 0:
-            stderr = []
+        returncode = s.__lastCmd.poll()
+        if returncode != None and returncode != 0:
+            stderr = ""
             if s.__lastCmd.stderr != None:
-                stderr = s.__lastCmd.stderr.readlines()
-            raise MyError("Failed to run command \n'"+
-                          " ".join(s.__lastCmdList)+"' (returned: "+ 
-                          str(s.__lastCmd.returncode)+"):\n"+"\n".join(stderr))
+                stderr = "\n".join(s.__lastCmd.stderr.readlines())
+            raise CmdReturnCodeError(returncode, stderr)
+        # no error
         stdout = []
         if s.__lastCmd.stdout != None:
                 stdout = s.__lastCmd.stdout.readlines()
@@ -278,7 +289,7 @@ class BlockDevice(Device):
         holders = s.getSubDev(basePath, "*")
         s.__holders = []
         addSubDevices(s.__holders, holders, basePath)
-        
+
     def inUse(s):
         if s.__holders and len(s.__holders) > 0:
             for h in s.__holders:
@@ -383,8 +394,15 @@ class BlockDevice(Device):
                 status.callSysCommand(["truecrypt", "-d", s.__mountPoint])
             else:
                 status.callSysCommand(["umount", s.__mountPoint])
+                try:
+                    status.lastCmdOutput()
+                except CmdReturnCodeError, e:
+                    if e.returnCode == 2: # privileges error
+                        raise MyError("You do not have the required privileges.")
+                    else:
+                        raise MyError(e.stderr)
         except MyError, e:
-            raise MyError("Failed to unmount "+s.ioFile()+": "+str(e))
+            raise MyError("Failed to unmount "+s.ioFile()+": \n"+str(e))
         s.update()
 
 def getSize(sysfsPath):

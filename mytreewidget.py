@@ -79,6 +79,8 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             sizeStr = " "+tr("size")+": "+formatSize(s.dev().size())
             toolTip += sizeStr
             statusTip += sizeStr
+        elif s.dev().isScsi():
+            statusTip += " " + s.dev().model()
         # finally set the extended info
         s.setToolTip(0, toolTip)
         s.setStatusTip(0, statusTip)
@@ -113,12 +115,14 @@ class MyTreeWidget(QTreeWidget):
     def contextMenu(s, pos):
         item = s.itemAt(pos)
         menu = QMenu(s)
-        mountAction = QAction(tr("mount with truecrypt"), menu)
-        QObject.connect(mountAction, SIGNAL("triggered(bool)"), item.mountAction)
-        umountAction = QAction(tr("umount"), menu)
-        QObject.connect(umountAction, SIGNAL("triggered(bool)"), item.umountAction)
-        menu.addAction(mountAction)
-        menu.addAction(umountAction)
+        if item.dev().inUse():
+            umountAction = QAction(tr("umount"), menu)
+            QObject.connect(umountAction, SIGNAL("triggered(bool)"), item.umountAction)
+            menu.addAction(umountAction)
+        else: # not in use
+            mountAction = QAction(tr("mount with truecrypt"), menu)
+            QObject.connect(mountAction, SIGNAL("triggered(bool)"), item.mountAction)
+            menu.addAction(mountAction)
         # fix popup menu position
         pos = s.mapToGlobal(pos)
         pos.setY(pos.y() + s.header().sizeHint().height())
