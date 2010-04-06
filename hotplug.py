@@ -1,7 +1,4 @@
-"""Module docstring.
 
-This serves as a long usage message.
-"""
 
 import sys
 import os

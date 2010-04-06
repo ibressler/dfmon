@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project hotplug_mgr -->
-<!-- Saved: 2010-04-02, 04:07:51 -->
+<!-- Saved: 2010-04-05, 17:18:25 -->
 <Tasks version="4.2">
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>refresh context menu</Summary>
+    <Description></Description>
+    <Created>2010-04-05, 17:16:35</Created>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>scsi-dev polling</Summary>
+    <Description>schauen, ob neue devs hinzugekommen sind oder eventuell welche entfernt wurden (-&gt;löschen von partitionen ...)</Description>
+    <Created>2010-04-05, 17:17:32</Created>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>remove dev context-menu</Summary>
+    <Description></Description>
+    <Created>2010-04-05, 17:17:51</Created>
+  </Task>
 </Tasks>

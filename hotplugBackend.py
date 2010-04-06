@@ -1,3 +1,10 @@
+"""hotplug mgr backend intelligence
+
+Device removal procedure follows recommendations at:
+http://www.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/html/Online_Storage_Reconfiguration_Guide/removing_devices.html
+But does not yet support LVM, md or multipath setups (usually not used in desktop scenarios).
+"""
+
 import sys
 import os
 import glob
@@ -94,11 +101,17 @@ class Status:
     def getDevices(s):
         s.update()
         return s.__devList
+        
+    def lastCmdName(s):
+        if not s.__lastCmdList or not s.__lastCmdList[0]:
+            return ""
+        return str(s.__lastCmdList[0])
 
     def swap(s): return s.__swapStatus
     def mount(s): return s.__mountStatus
 
     def callSysCommand(s, cmdList):
+        print "callSysCommand:", str(cmdList)
         if not cmdList or len(cmdList) <= 0:
             return
         try:
@@ -299,7 +312,7 @@ class BlockDevice(Device):
             for p in s.__partitions:
                 if p.inUse():
                     return True
-        if s.__mountPoint != None:
+        if s.__mountPoint:
             return True
         return False
 
@@ -366,13 +379,14 @@ class BlockDevice(Device):
         """Mount block device"""
         # no partitions
         if len(s.__partitions) == 0:
-            if not s.inUse():
+            if not os.path.exists(s.ioFile()): return
+            if s.inUse():
+                raise DeviceInUseWarning()
+            else:
                 try:
-                    status.callSysCommand(["truecrypt", "--mount", s.__ioFile])
+                    status.callSysCommand(["truecrypt", "--mount", s.ioFile()])
                 except MyError, e:
                     raise MyError("Failed to mount "+s.ioFile()+": "+str(e))
-            else:
-                raise DeviceInUseWarning()
         elif len(s.__partitions) == 1:
             s.__partitions[0].mount()
         else:
@@ -385,25 +399,40 @@ class BlockDevice(Device):
             part.umount()
         for holder in s.__holders:
             holder.umount()
-        if not s.inUse():
+        if not os.path.isdir(s.mountPoint()):
             return
-        # do only for truecrypt devices
+        # function tests for truecrypt device files
         isTruecrypt = strInList("truecrypt")
         try:
             if isTruecrypt(s.__ioFile):
-                status.callSysCommand(["truecrypt", "-d", s.__mountPoint])
+                status.callSysCommand(["truecrypt", "-t", "-d", s.mountPoint()])
             else:
-                status.callSysCommand(["umount", s.__mountPoint])
-                try:
-                    status.lastCmdOutput()
-                except CmdReturnCodeError, e:
-                    if e.returnCode == 2: # privileges error
-                        raise MyError("You do not have the required privileges.")
-                    else:
-                        raise MyError(e.stderr)
+                status.callSysCommand(["umount", s.mountPoint()])
+            try: # check for errors
+                status.lastCmdOutput()
+            except CmdReturnCodeError, e:
+                if status.lastCmdName() == "umount" and e.returnCode == 2: # privileges error
+                    raise MyError("You do not have the required privileges.")
+                else:
+                    raise MyError(e.stderr)
         except MyError, e:
-            raise MyError("Failed to unmount "+s.ioFile()+": \n"+str(e))
+            raise MyError("Failed to umount "+s.ioFile()+": \n"+str(e))
         s.update()
+        
+    def flush(s):
+        """Flushes the device buffers."""
+        print "flush", s.ioFile()
+        for part in s.__partitions:
+            part.flush()
+        for holder in s.__holders:
+            holder.flush()
+        if s.inUse() or not os.path.exists(s.ioFile()):
+            return
+        try:
+            status.callSysCommand(["kdesudo", "blockdev --flushbufs "+s.ioFile()])
+            status.lastCmdOutput()
+        except CmdReturnCodeError, e:
+            raise MyError("CmdReturnCodeError: "+str(e.returnCode)+"\n"+e.stderr)
 
 def getSize(sysfsPath):
     """Returns the overall numerical size of a block device.
@@ -464,13 +493,17 @@ class ScsiDevice(Device):
         if not s.__scsiAdr: return ""
         return "["+reduce(lambda a, b: a+":"+b, s.__scsiAdr)+"]"
 
+    def isScsi(s): return True
+    
+    # forwarder
+    
     def inUse(s): 
         """Tells if this device is in use somehow (has mounted partitions)."""
         return s.__dev.inUse()
 
-    def isScsi(s): return True
-    def mount(s): return s.blk().mount()
-    def umount(s): return s.blk().umount()
+    def mount(s): return s.__dev.mount()
+    def umount(s): return s.__dev.umount()
+    def flush(s): return s.__dev.flush()
 
     # setup code
 
@@ -576,6 +609,7 @@ def getBlkDevPath(devPath):
     return (fullPath, devName)
 
 # how to improve this ? is there a direct way to get the device file ?
+# speedup by caching ?
 def getIoFilename(devNum):
     """Search the block device filename in /dev/ based on the major/minor number"""
     if not devNum or devNum < 0:

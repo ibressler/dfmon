@@ -40,6 +40,16 @@ class MyTreeWidgetItem(QTreeWidgetItem):
                                 QMessageBox.Ok, QMessageBox.Ok)
         finally:
             s.treeWidget().clear()
+            
+    def testAction(s, checked = False):
+        try:
+                s.dev().flush()
+        except hotplugBackend.MyError, e:
+            QMessageBox.critical(s.treeWidget(), tr("Test Error"), 
+                                tr("An error ocurred:\n")+str(e), 
+                                QMessageBox.Ok, QMessageBox.Ok)
+        finally:
+            s.treeWidget().clear()
 
     # setup methods
 
@@ -123,6 +133,9 @@ class MyTreeWidget(QTreeWidget):
             mountAction = QAction(tr("mount with truecrypt"), menu)
             QObject.connect(mountAction, SIGNAL("triggered(bool)"), item.mountAction)
             menu.addAction(mountAction)
+        testAction = QAction(tr("test"), menu)
+        QObject.connect(testAction, SIGNAL("triggered(bool)"), item.testAction)
+        menu.addAction(testAction)
         # fix popup menu position
         pos = s.mapToGlobal(pos)
         pos.setY(pos.y() + s.header().sizeHint().height())
