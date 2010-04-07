@@ -8,6 +8,7 @@ def tr(s):
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     __dev = None # one element list (&reference ?)
+    __childCountR = None
 
     def dev(s):
         return s.__dev[0]
@@ -58,6 +59,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         #s.__dev = dev # this produces cascaded instance duplication somehow
         # don't want to copy the complete Device incl. sublists
         s.__dev = [dev]
+        s.__childCountR = 0
         s.configure()
 
     def addBlockDevice(s, dev):
@@ -68,6 +70,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         for holder in dev.holders():
             item.addBlockDevice(holder)
         s.addChild(item)
+        s.__childCountR += 1 + item.childCountR()
 
     def configure(s):
         if not s.dev(): return
@@ -97,17 +100,23 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         s.setData(0, Qt.UserRole, QVariant(s.dev().inUse())) # for the delegate
         if s.dev().isScsi():
             s.addBlockDevice(s.dev().blk())
+            
+    def childCountR(s):
+        """Returns the recursive child count."""
+        return s.__childCountR
 
 class MyTreeWidget(QTreeWidget):
+    __rowCount = None # overall count of rows
 
     def __init__(s, parent=None):
         QTreeWidget.__init__(s, parent)
         # connect some signals/slots
         QObject.connect(s, SIGNAL("customContextMenuRequested(const QPoint&)"), s.contextMenu)
+        s.__rowCount = 0
         s.clear() # clears and rebuilds the tree
 
     def sizeHint(s):
-        """Show all columns (no horizontal scrollbar)"""
+        """Show all entries so that no scrollbar is required"""
         widthHint = 0
         for col in range(0, s.columnCount()):
             colWidth = s.sizeHintForColumn(col)
@@ -119,7 +128,14 @@ class MyTreeWidget(QTreeWidget):
             widthHint += s.verticalScrollBar().width()
         hint = QTreeWidget.sizeHint(s)
         hint.setWidth(widthHint)
-        hint.setHeight(300)
+        # set height according to # rows
+        h = s.indexRowSizeHint(s.indexFromItem(s.invisibleRootItem().child(0))) # one row
+        heightHint = s.__rowCount * h + s.header().height() + 4 # magic margin 2+2
+        desktop = qApp.desktop()
+        maxHeight = desktop.availableGeometry(desktop.screenNumber(s)).height()
+        if heightHint > maxHeight:
+            heightHint = maxHeight
+        hint.setHeight(heightHint)
         return hint
 
     def contextMenu(s, pos):
@@ -144,7 +160,10 @@ class MyTreeWidget(QTreeWidget):
     def reset(s):
         QTreeWidget.reset(s)
         rootItem = s.invisibleRootItem()
+        rowCount = 0
         for dev in hotplugBackend.status.getDevices():
             item = MyTreeWidgetItem(dev)
+            rowCount += 1 + item.childCountR()
             rootItem.addChild(item)
         s.expandAll()
+        s.__rowCount = rowCount
