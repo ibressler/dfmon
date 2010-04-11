@@ -16,6 +16,9 @@ import time
 OsDevPath = "/dev/"
 OsSysPath = "/sys/class/scsi_device/"
 
+# graphical sudo handlers to test for, last one is the fallback solution
+knownSudoHandlers = ["kdesudo", "gksudo", "sudo"]
+
 # were does this come from, how to determine this value ?
 blockSize = long(512)
 
@@ -31,6 +34,9 @@ for i in reversed(range(0,len(sizesNames))):
 
 # output indent level used for console output
 outputIndent = ""
+
+
+## implementation ##
 
 def formatSize(size):
     """Formats the given number to human readable size information in bytes"""
@@ -83,6 +89,7 @@ class Status:
     __mountStatus = None
     __swapStatus = None
     __devList = None # list of devices
+    __sudo = None
     __lastCmd = None # Popen object of the last command called
     __lastCmdList = None # command string list of the last command
 
@@ -92,6 +99,15 @@ class Status:
         for path in OsDevPath, OsSysPath:
             if not os.path.isdir(path):
                 raise MyError("Specified device path '"+path+"' does not exist !")
+        s.setSudoHandler()
+
+    def setSudoHandler(s):
+        for handler in knownSudoHandlers:
+            for path in os.environ["PATH"].split(":"):
+                handlerPath = os.path.join(path, handler)
+                if os.path.isfile(handlerPath):
+                    s.__sudo = handlerPath
+                    return
 
     def update(s):
         s.__mountStatus = MountStatus()
@@ -101,7 +117,7 @@ class Status:
     def getDevices(s):
         s.update()
         return s.__devList
-        
+
     def lastCmdName(s):
         if not s.__lastCmdList or not s.__lastCmdList[0]:
             return ""
@@ -110,11 +126,13 @@ class Status:
     def swap(s): return s.__swapStatus
     def mount(s): return s.__mountStatus
 
-    def callSysCommand(s, cmdList):
-        print "callSysCommand:", str(cmdList)
+    def callSysCommand(s, cmdList, sudoFlag = False):
         if not cmdList or len(cmdList) <= 0:
             return
+        if sudoFlag:
+            cmdList = [s.__sudo, " ".join(cmdList)]
         try:
+            print "callSysCommand:", str(cmdList)
             s.__lastCmd = subprocess.Popen(cmdList, bufsize=-1, 
                                stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         except Exception, e:
@@ -418,7 +436,7 @@ class BlockDevice(Device):
         except MyError, e:
             raise MyError("Failed to umount "+s.ioFile()+": \n"+str(e))
         s.update()
-        
+
     def flush(s):
         """Flushes the device buffers."""
         print "flush", s.ioFile()
@@ -429,7 +447,7 @@ class BlockDevice(Device):
         if s.inUse() or not os.path.exists(s.ioFile()):
             return
         try:
-            status.callSysCommand(["kdesudo", "blockdev --flushbufs "+s.ioFile()])
+            status.callSysCommand(["blockdev", "--flushbufs", s.ioFile()], True)
             status.lastCmdOutput()
         except CmdReturnCodeError, e:
             raise MyError("CmdReturnCodeError: "+str(e.returnCode)+"\n"+e.stderr)
@@ -494,9 +512,9 @@ class ScsiDevice(Device):
         return "["+reduce(lambda a, b: a+":"+b, s.__scsiAdr)+"]"
 
     def isScsi(s): return True
-    
+
     # forwarder
-    
+
     def inUse(s): 
         """Tells if this device is in use somehow (has mounted partitions)."""
         return s.__dev.inUse()
@@ -656,6 +674,5 @@ def getScsiDevices(path):
                 devs.append(d)
     return devs
 
-### end ScsiDevice related stuff
-
+# get initial system status
 status = Status()

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project hotplug_mgr -->
-<!-- Saved: 2010-04-06, 22:58:17 -->
+<!-- Saved: 2010-04-08, 22:45:29 -->
 <Tasks version="4.2">
   <Task priority="1" completed="False" bugfix="False">
-    <Summary>refresh context menu</Summary>
+    <Summary>context menu: refresh</Summary>
     <Description></Description>
     <Created>2010-04-05, 17:16:35</Created>
   </Task>
@@ -14,14 +14,9 @@
     <Created>2010-04-05, 17:17:32</Created>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
-    <Summary>remove dev context-menu</Summary>
+    <Summary>context-menu: remove dev</Summary>
     <Description></Description>
     <Created>2010-04-05, 17:17:51</Created>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>fixed/adaptive window height</Summary>
-    <Description>row counting * row height hint</Description>
-    <Created>2010-04-06, 20:45:34</Created>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
     <Summary>cache io filename lookups</Summary>

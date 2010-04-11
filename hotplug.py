@@ -1,11 +1,6 @@
-
-
 import sys
 import os
 import getopt
-
-# todo:
-    # truecrypt compatibility
 
 from hotplugCmd import consoleMenu
 from hotplugQt import qtMenu
@@ -22,7 +17,10 @@ def cmdName(argv):
         return os.path.basename(argv[0])
 
 def showUsage(argv):
-    msg = cmdName(argv)+": Does not support options atm, sry."
+    msg = "USAGE: " + cmdName(argv) + " <option>\n"
+    msg += "    Where <option> is one of:\n"
+    msg += "    -c      command line mode\n"
+    msg += "    No option starts the GUI mode.\n"
     return msg
 
 def main(argv=None):

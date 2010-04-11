@@ -1,8 +1,6 @@
 """Qt GUI for the hotplug manager
 """
 
-# todo: fix devlist vs. blkdevlist
-
 import sys
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -43,9 +41,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         headerItem.setToolTip(0,s.windowTitle()
                               +tr("\nFor feedback and contributions, please visit URL."))
         s.treeWidget.setMouseTracking(True)
-#        r = qApp.desktop().screenGeometry()
-#        print "screen width:", r.width(), "height:", r.height()
-#        s.treeWidget.reset()
 
     def keyPressEvent(s, keyEvent):
         QMainWindow.keyPressEvent(s, keyEvent)
