@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'mainwindow.ui'
 #
-# Created: Fri Apr  2 21:35:58 2010
+# Created: Mon Apr 12 16:53:10 2010
 #      by: PyQt4 UI code generator 4.3.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -20,6 +20,12 @@ class Ui_MainWindow(object):
         self.vboxlayout.setObjectName("vboxlayout")
 
         self.treeWidget = MyTreeWidget(self.centralwidget)
+
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.treeWidget.sizePolicy().hasHeightForWidth())
+        self.treeWidget.setSizePolicy(sizePolicy)
         self.treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.treeWidget.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.treeWidget.setObjectName("treeWidget")

@@ -86,6 +86,7 @@ class DeviceHasPartitions(UserWarning): pass
 class MissingPrivileges(UserWarning): pass
 
 class Status:
+    """Retrieves system status regarding Scsi, associated block devices and mountpoints."""
     __mountStatus = None
     __swapStatus = None
     __devList = None # list of devices
@@ -130,7 +131,9 @@ class Status:
         if not cmdList or len(cmdList) <= 0:
             return
         if sudoFlag:
-            cmdList = [s.__sudo, " ".join(cmdList)]
+#            cmdList = [s.__sudo, " ".join(cmdList)]
+            cmdList.insert(0, "--")
+            cmdList.insert(0, s.__sudo)
         try:
             print "callSysCommand:", str(cmdList)
             s.__lastCmd = subprocess.Popen(cmdList, bufsize=-1, 
@@ -146,10 +149,13 @@ class Status:
         if not s.__lastCmd: 
             return []
         #while s.__lastCmd.returncode == None:
-        time.sleep(0.1) # wait some time for the usual command to finish
+#        time.sleep(0.1) # wait some time for the usual command to finish
     #    if retCode == None:
-    #        mountCmd.kill() # probably blocked by hardware, avoid stalling, v2.6
+    #        mountCmd.kill() # probably blocked by hardware, avoid stalling, py v2.6
         returncode = s.__lastCmd.poll()
+        while returncode == None:
+            returncode = s.__lastCmd.poll()
+            time.sleep(0.1) # wait some time for the command to finish
         if returncode != None and returncode != 0:
             stderr = ""
             if s.__lastCmd.stderr != None:
@@ -599,6 +605,23 @@ class ScsiDevice(Device):
                 s.sysfs() and os.path.isdir(s.sysfs()) and \
                 s.__dev.isValid()
         # test for every blk device being valid
+        
+    def remove(s):
+        if s.inUse():
+            s.umount()
+        if s.inUse(): # still in use
+            raise MyError("Could not umount this device!")
+        else:
+            delPath = os.path.join(s.sysfs(), "delete")
+            if not os.path.isfile(delPath):
+                raise MyError("Could not find '"+delPath+"'")
+            else:
+                s.__dev.flush()
+                try:
+                    status.callSysCommand(["su", "-c", "echo 1 > "+delPath], True)
+                    status.lastCmdOutput()
+                except CmdReturnCodeError, e:
+                    raise MyError("CmdReturnCodeError: "+str(e.returnCode)+"\n"+e.stderr)
 
     def __str__(s):
         """Outputs full detailed information about this devices"""

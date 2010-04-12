@@ -41,11 +41,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         headerItem.setToolTip(0,s.windowTitle()
                               +tr("\nFor feedback and contributions, please visit URL."))
         s.treeWidget.setMouseTracking(True)
+        QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.updateGeometry)
+        QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.centralwidget.updateGeometry)
+        QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.contentChanged)
+        s.treeWidget.clear() # clears and rebuilds the tree
 
     def keyPressEvent(s, keyEvent):
         QMainWindow.keyPressEvent(s, keyEvent)
         if keyEvent.key() == Qt.Key_Escape:
             s.close()
+            
+    def contentChanged(s):
+#        print "contentChanged"
+#        print "trr height:", s.treeWidget.size().height()
+        sh = s.sizeHint()
+        # s.resize(s.treeWidget.sizeHint()) # does not work
+        s.setMinimumSize(sh)
+        s.setMaximumSize(sh)
+#        print "blubb", s.width(), s.height()
 
 # end MainWindow
 

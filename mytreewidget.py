@@ -8,7 +8,8 @@ def tr(s):
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     __dev = None # one element list (&reference ?)
-    __childCountR = None
+    __overallChildCount = None
+    __visibleChildCount = None
 
     def dev(s):
         return s.__dev[0]
@@ -41,7 +42,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
                                 QMessageBox.Ok, QMessageBox.Ok)
         finally:
             s.treeWidget().clear()
-            
+
     def testAction(s, checked = False):
         try:
                 s.dev().flush()
@@ -52,6 +53,22 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         finally:
             s.treeWidget().clear()
 
+    def removeAction(s, checked = False):
+        if not s.dev().isScsi(): return
+        tw = s.treeWidget()
+        try:
+                s.dev().remove()
+        except hotplugBackend.MyError, e:
+            QMessageBox.critical(s.treeWidget(), tr("Remove Error"), 
+                                tr("An error ocurred:\n")+str(e), 
+                                QMessageBox.Ok, QMessageBox.Ok)
+        finally:
+            tw.clear()
+        if not s.dev().isValid():
+            QMessageBox.information(tw, tr("Success"), 
+                                tr("It is safe to unplug the device now."), 
+                                QMessageBox.Ok, QMessageBox.Ok)
+
     # setup methods
 
     def __init__(s, dev):
@@ -59,8 +76,21 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         #s.__dev = dev # this produces cascaded instance duplication somehow
         # don't want to copy the complete Device incl. sublists
         s.__dev = [dev]
-        s.__childCountR = 0
+        s.__overallChildCount = 0
+        s.__visibleChildCount = 0
         s.configure()
+
+    def expanded(s):
+        s.__visibleChildCount = s.childCount()
+        for i in range(0, s.childCount()):
+            s.__visibleChildCount += s.child(i).visibleChildCount()
+        if s.parent():
+            s.parent().expanded()
+
+    def collapsed(s):
+        s.__visibleChildCount = 0
+        if s.parent():
+            s.parent().expanded()
 
     def addBlockDevice(s, dev):
         if not dev: return
@@ -70,7 +100,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         for holder in dev.holders():
             item.addBlockDevice(holder)
         s.addChild(item)
-        s.__childCountR += 1 + item.childCountR()
+        s.__overallChildCount += 1 + item.overallChildCount()
 
     def configure(s):
         if not s.dev(): return
@@ -100,47 +130,64 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         s.setData(0, Qt.UserRole, QVariant(s.dev().inUse())) # for the delegate
         if s.dev().isScsi():
             s.addBlockDevice(s.dev().blk())
-            
-    def childCountR(s):
+
+    def overallChildCount(s):
         """Returns the recursive child count."""
-        return s.__childCountR
+        return s.__overallChildCount
+
+    def visibleChildCount(s):
+        """Returns the recursive child count."""
+        return s.__visibleChildCount
+
+    def expandAll(s):
+        s.setExpanded(True)
+        for i in range(0, s.childCount()):
+            s.child(i).setExpanded(True)
+            s.child(i).expandAll()
 
 class MyTreeWidget(QTreeWidget):
-    __rowCount = None # overall count of rows
+    __visibleRowCount = None # overall count of rows
 
     def __init__(s, parent=None):
         QTreeWidget.__init__(s, parent)
         # connect some signals/slots
         QObject.connect(s, SIGNAL("customContextMenuRequested(const QPoint&)"), s.contextMenu)
-        s.__rowCount = 0
-        s.clear() # clears and rebuilds the tree
+        QObject.connect(s, SIGNAL("itemCollapsed(QTreeWidgetItem *)"), s.itemCollapsedOrExpanded)
+        QObject.connect(s, SIGNAL("itemExpanded(QTreeWidgetItem *)"), s.itemCollapsedOrExpanded)
+        s.__visibleRowCount = 0
 
     def sizeHint(s):
         """Show all entries so that no scrollbar is required"""
-        widthHint = 0
-        for col in range(0, s.columnCount()):
-            colWidth = s.sizeHintForColumn(col)
-            colWidth += 5
-            s.header().resizeSection(col, colWidth)
-            widthHint += colWidth + 2 # magic margin between columns
-        widthHint += 2
-        if not s.verticalScrollBar().isHidden():
+        # sum up all column widths
+        widthHint = s.sizeHintForColumn(0) + 5 # arbitrary margin for beautification
+        # consider the header width
+        if widthHint < s.header().sizeHint().width():
+            widthHint = s.header().sizeHint().width() + 2*2
+        # consider the scrollbar width
+        if s.verticalScrollBar().isVisible():
             widthHint += s.verticalScrollBar().width()
+        # update the current/original size hint
         hint = QTreeWidget.sizeHint(s)
         hint.setWidth(widthHint)
         # set height according to # rows
         h = s.indexRowSizeHint(s.indexFromItem(s.invisibleRootItem().child(0))) # one row
-        heightHint = s.__rowCount * h + s.header().height() + 4 # magic margin 2+2
+        heightHint = s.__visibleRowCount * h + s.header().height() + 2*2 # magic margin 2+2
+        # stay within desktop area
         desktop = qApp.desktop()
         maxHeight = desktop.availableGeometry(desktop.screenNumber(s)).height()
         if heightHint > maxHeight:
             heightHint = maxHeight
         hint.setHeight(heightHint)
+#        print "final hint:", hint.width(), hint.height()
         return hint
 
     def contextMenu(s, pos):
         item = s.itemAt(pos)
         menu = QMenu(s)
+        if item.dev().isScsi():
+            removeAction = QAction(tr("umount all && remove"), menu)
+            QObject.connect(removeAction, SIGNAL("triggered(bool)"), item.removeAction)
+            menu.addAction(removeAction)
         if item.dev().inUse():
             umountAction = QAction(tr("umount"), menu)
             QObject.connect(umountAction, SIGNAL("triggered(bool)"), item.umountAction)
@@ -149,6 +196,7 @@ class MyTreeWidget(QTreeWidget):
             mountAction = QAction(tr("mount with truecrypt"), menu)
             QObject.connect(mountAction, SIGNAL("triggered(bool)"), item.mountAction)
             menu.addAction(mountAction)
+        menu.addSeparator()
         testAction = QAction(tr("test"), menu)
         QObject.connect(testAction, SIGNAL("triggered(bool)"), item.testAction)
         menu.addAction(testAction)
@@ -156,14 +204,29 @@ class MyTreeWidget(QTreeWidget):
         pos = s.mapToGlobal(pos)
         pos.setY(pos.y() + s.header().sizeHint().height())
         menu.popup(pos)
-        
+
     def reset(s):
         QTreeWidget.reset(s)
         rootItem = s.invisibleRootItem()
-        rowCount = 0
         for dev in hotplugBackend.status.getDevices():
             item = MyTreeWidgetItem(dev)
-            rowCount += 1 + item.childCountR()
             rootItem.addChild(item)
-        s.expandAll()
-        s.__rowCount = rowCount
+            item.expandAll()
+        s.setVisibleRowCount()
+        s.adjustSize()
+        QObject.emit(s, SIGNAL("contentChanged(void)"))
+
+    def itemCollapsedOrExpanded(s, item):
+        if item.isExpanded():
+            item.expanded()
+        else: # collapsed
+            item.collapsed()
+        s.setVisibleRowCount()
+        s.updateGeometry()
+        QObject.emit(s, SIGNAL("contentChanged(void)"))
+        
+    def setVisibleRowCount(s):
+        rootItem = s.invisibleRootItem()
+        s.__visibleRowCount = rootItem.childCount()
+        for i in range(0, rootItem.childCount()):
+            s.__visibleRowCount += rootItem.child(i).visibleChildCount()

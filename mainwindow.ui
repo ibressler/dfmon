@@ -8,6 +8,12 @@
    <layout class="QVBoxLayout" name="verticalLayout" >
     <item>
      <widget class="MyTreeWidget" name="treeWidget" >
+      <property name="sizePolicy" >
+       <sizepolicy vsizetype="Fixed" hsizetype="Fixed" >
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <property name="contextMenuPolicy" >
        <enum>Qt::CustomContextMenu</enum>
       </property>

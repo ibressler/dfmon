@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project hotplug_mgr -->
-<!-- Saved: 2010-04-08, 22:45:29 -->
+<!-- Saved: 2010-04-12, 01:10:14 -->
 <Tasks version="4.2">
   <Task priority="1" completed="False" bugfix="False">
     <Summary>context menu: refresh</Summary>
@@ -22,10 +22,5 @@
     <Summary>cache io filename lookups</Summary>
     <Description></Description>
     <Created>2010-04-06, 21:10:52</Created>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>sudo handler</Summary>
-    <Description></Description>
-    <Created>2010-04-06, 22:55:10</Created>
   </Task>
 </Tasks>
