@@ -215,7 +215,6 @@ class MyTreeWidget(QTreeWidget):
         QTreeWidget.reset(s)
         rootItem = s.invisibleRootItem()
         for dev in hotplugBackend.status.getDevices():
-            print "ts:", dev.timeStamp()
             item = MyTreeWidgetItem(dev)
             rootItem.addChild(item)
             item.expandAll()
