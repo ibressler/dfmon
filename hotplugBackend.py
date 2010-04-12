@@ -11,6 +11,7 @@ import glob
 import stat
 import subprocess
 import time
+import math
 
 # required system paths
 OsDevPath = "/dev/"
@@ -32,6 +33,10 @@ sizesValues = []
 for i in reversed(range(0,len(sizesNames))):
     sizesValues.append(pow(magnitude,i))
 
+# time formatting data, based on seconds
+timeNames = ["y", "w", "d", "h", "m", "s"]
+timeValues = [31536000, 604800, 86400, 3600, 60, 1]
+
 # output indent level used for console output
 outputIndent = ""
 
@@ -48,6 +53,19 @@ def formatSize(size):
             return "%.2f%s" % (short, n)
     else:
         return "%.2f%s" % (short, n)
+        
+def formatTimeDistance(t):
+    if not t or t < 0: 
+        return "-1"
+    str = ""
+    for v, n in zip(timeValues, timeNames):
+        if len(str) > 0:
+            str += " "
+        if t > v:
+            factor = int(t/v)
+            str += "%d%s" % (factor, n)
+            t -= factor * v
+    return str
 
 def strInList(searchStr):
     return lambda line: line.find(searchStr) >= 0
@@ -499,6 +517,7 @@ class ScsiDevice(Device):
     __driverName = None
     __vendor = None
     __model = None
+    __timeStamp = None # indicates when this device was added to the system
 
     # getter methods
 
@@ -545,6 +564,7 @@ class ScsiDevice(Device):
         s.driver()
         s.vendor()
         s.model()
+        s.timeStamp()
         # final verification
         if not s.isValid():
             raise MyError("Determined Scsi device information not valid")
@@ -586,6 +606,11 @@ class ScsiDevice(Device):
         s.__driverName = tail
         return s.__driverName
 
+    def timeStamp(s):
+        if not s.__timeStamp:
+            s.__timeStamp = int(os.path.getmtime(s.sysfs()))
+        return s.__timeStamp
+
     def isSupported(s):
         fn = os.path.join(s.sysfs(),"type")
         if not os.path.isfile(fn): 
@@ -605,7 +630,7 @@ class ScsiDevice(Device):
                 s.sysfs() and os.path.isdir(s.sysfs()) and \
                 s.__dev.isValid()
         # test for every blk device being valid
-        
+
     def remove(s):
         if s.inUse():
             s.umount()
@@ -694,7 +719,13 @@ def getScsiDevices(path):
             if not d.isValid():
                 raise MyError("Device not valid: "+entry)
             else:
-                devs.append(d)
+                # add the device in chronological order
+                i = 0
+                for oldDev in devs:
+                    if oldDev.timeStamp() < d.timeStamp():
+                        break
+                    i += 1
+                devs.insert(i, d)
     return devs
 
 # get initial system status

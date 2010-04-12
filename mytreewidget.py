@@ -1,7 +1,8 @@
+import time
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import hotplugBackend
-from hotplugBackend import formatSize
+from hotplugBackend import formatSize, formatTimeDistance
 
 def tr(s):
    return QCoreApplication.translate(None, s)
@@ -106,9 +107,9 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         if not s.dev(): return
         s.setText(0, s.dev().shortName())
         # decide usage status
-        toolTip = "["+tr("not used")+"]"
+        toolTip = tr("[not used]")
         if s.dev().inUse():
-            toolTip = "["+tr("in use")+"]"
+            toolTip = tr("[in use]")
         statusTip = ""+toolTip
         # generate extended device type dependent info
         toolTip += " " + s.dev().fullName()
@@ -116,14 +117,16 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             if s.dev().inUse():
                 mp = s.dev().mountPoint()
                 if len(mp): 
-                    toolTip += " ["+tr("mountpoint")+": " + mp + "]"
+                    toolTip += tr(" [mountpoint: %1]").arg(mp)
                 else:
-                    toolTip += " ["+tr("not mounted")+"]"
-            sizeStr = " "+tr("size")+": "+formatSize(s.dev().size())
+                    toolTip += tr(" [not mounted]")
+            sizeStr = tr(" size: %1").arg(formatSize(s.dev().size()))
             toolTip += sizeStr
             statusTip += sizeStr
         elif s.dev().isScsi():
             statusTip += " " + s.dev().model()
+            secs = int(time.time()) - s.dev().timeStamp()
+            toolTip += tr(" (added %1 ago)").arg(formatTimeDistance(secs))
         # finally set the extended info
         s.setToolTip(0, toolTip)
         s.setStatusTip(0, statusTip)
@@ -197,18 +200,22 @@ class MyTreeWidget(QTreeWidget):
             QObject.connect(mountAction, SIGNAL("triggered(bool)"), item.mountAction)
             menu.addAction(mountAction)
         menu.addSeparator()
-        testAction = QAction(tr("test"), menu)
-        QObject.connect(testAction, SIGNAL("triggered(bool)"), item.testAction)
-        menu.addAction(testAction)
+        refreshAction = QAction(tr("refresh all"), menu)
+        QObject.connect(refreshAction, SIGNAL("triggered(bool)"), s.refreshAction)
+        menu.addAction(refreshAction)
         # fix popup menu position
         pos = s.mapToGlobal(pos)
         pos.setY(pos.y() + s.header().sizeHint().height())
         menu.popup(pos)
 
+    def refreshAction(s, checked = False):
+        s.clear()
+
     def reset(s):
         QTreeWidget.reset(s)
         rootItem = s.invisibleRootItem()
         for dev in hotplugBackend.status.getDevices():
+            print "ts:", dev.timeStamp()
             item = MyTreeWidgetItem(dev)
             rootItem.addChild(item)
             item.expandAll()
@@ -224,7 +231,7 @@ class MyTreeWidget(QTreeWidget):
         s.setVisibleRowCount()
         s.updateGeometry()
         QObject.emit(s, SIGNAL("contentChanged(void)"))
-        
+
     def setVisibleRowCount(s):
         rootItem = s.invisibleRootItem()
         s.__visibleRowCount = rootItem.childCount()
