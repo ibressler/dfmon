@@ -41,7 +41,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         headerItem.setText(0,tr("available devices"))
         headerItem.setTextAlignment(0, Qt.AlignHCenter)
         headerItem.setToolTip(0,s.windowTitle()
-                              +tr("\nFor feedback and contributions, please visit URL."))
+                              +tr("\nFor information, feedback and contributions, please visit URL."))
         s.treeWidget.setMouseTracking(True)
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.updateGeometry)
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.centralwidget.updateGeometry)

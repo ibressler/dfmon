@@ -18,7 +18,7 @@ OsDevPath = "/dev/"
 OsSysPath = "/sys/class/scsi_device/"
 
 # graphical sudo handlers to test for, last one is the fallback solution
-knownSudoHandlers = ["kdesudo", "gksudo", "sudo"]
+knownSudoHandlers = ["kdesu", "gksu", "sudo"]
 
 # were does this come from, how to determine this value ?
 blockSize = long(512)
@@ -40,6 +40,8 @@ timeValues = [31536000, 604800, 86400, 3600, 60, 1]
 # output indent level used for console output
 outputIndent = ""
 
+# dictionary for io filename lookup and caching
+ioFileCache = None
 
 ## implementation ##
 
@@ -53,7 +55,7 @@ def formatSize(size):
             return "%.2f%s" % (short, n)
     else:
         return "%.2f%s" % (short, n)
-        
+
 def formatTimeDistance(t):
     if not t or t < 0: 
         return "-1"
@@ -153,7 +155,7 @@ class Status:
             cmdList.insert(0, "--")
             cmdList.insert(0, s.__sudo)
         try:
-            print "callSysCommand:", str(cmdList)
+#            print "callSysCommand:", str(cmdList)
             s.__lastCmd = subprocess.Popen(cmdList, bufsize=-1, 
                                stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         except Exception, e:
@@ -163,7 +165,7 @@ class Status:
             s.__lastCmdList = cmdList
 
     def lastCmdOutput(s):
-        "On success, returns a list of output lines."
+        """On success, returns a list of output lines."""
         if not s.__lastCmd: 
             return []
         #while s.__lastCmd.returncode == None:
@@ -174,6 +176,7 @@ class Status:
         while returncode == None:
             returncode = s.__lastCmd.poll()
             time.sleep(0.1) # wait some time for the command to finish
+#        print "lastCmdOutput, returncode:", returncode
         if returncode != None and returncode != 0:
             stderr = ""
             if s.__lastCmd.stderr != None:
@@ -680,16 +683,28 @@ def getIoFilename(devNum):
     """Search the block device filename in /dev/ based on the major/minor number"""
     if not devNum or devNum < 0:
         return ""
-    # get all device files first
+    foundName = ""
+    global ioFileCache
+    if not ioFileCache or len(ioFileCache) == 0 or not ioFileCache.has_key(devNum):
+        rebuildIoFileCache()
+    # retrieve the io file if available
+    foundName = ioFileCache.get(devNum, "")
+    return foundName
+
+def rebuildIoFileCache():
+    global ioFileCache
+    if not ioFileCache:
+        ioFileCache = dict()
+    ioFileCache.clear()
     for root, dirs, files in os.walk(OsDevPath):
         # ignore directories with leading dot
         for i in reversed(range(0,len(dirs))):
-            if dirs[i][0] == ".":
+            if dirs[i][0] == "." or dirs[i] == "input":
                 del dirs[i]
         # add the files found to a list
         for fn in files:
             # ignore some files
-            if fn[0:3] == "pty" or fn[0:3] == "tty":
+            if fn[0:3] == "pty" or fn[0:3] == "tty" or fn[0:3] == "ram":
                 continue
             fullName = os.path.join(root,fn)
             try:
@@ -698,11 +713,9 @@ def getIoFilename(devNum):
                 print "Can't stat",fullName,"->",str(e)
                 continue
             else:
-                # compare device numbers on block devices
-                if stat.S_ISBLK(statinfo.st_mode) and \
-                   devNum == statinfo.st_rdev:
-                    return fullName
-    return ""
+                # consider block devices only, take device numbers for the keys
+                if stat.S_ISBLK(statinfo.st_mode):
+                    ioFileCache[statinfo.st_rdev] = fullName
 
 def getScsiDevices(path):
     """Returns a list of scsi device descriptors including block devices"""
