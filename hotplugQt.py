@@ -28,12 +28,10 @@ class MyItemDelegate(QItemDelegate):
         QItemDelegate.paint(s, painter, option, index)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __timer = None
 
     def __init__(s, parent = None):
         QMainWindow.__init__(s, parent)
         s.setupUi(s)
-        s.__timer = QTimer(s)
         #s.treeWidget.setHeaderHidden(True) # qt 4.4
         delegate = MyItemDelegate(s.treeWidget.itemDelegate())
         s.treeWidget.setItemDelegate(delegate)
@@ -46,9 +44,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.updateGeometry)
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.centralwidget.updateGeometry)
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.contentChanged)
-        QObject.connect(s.__timer, SIGNAL("timeout(void)"), s.treeWidget.clear)
         s.treeWidget.clear() # clears and rebuilds the tree
-#        s.__timer.start(5000) # good or bad ?
 
     def keyPressEvent(s, keyEvent):
         QMainWindow.keyPressEvent(s, keyEvent)

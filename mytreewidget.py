@@ -17,7 +17,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
 
     def mountAction(s, checked = False):
         try:
-                s.dev().mount()
+            s.dev().mount()
         except hotplugBackend.DeviceInUseWarning, w:
             QMessageBox.warning(s.treeWidget(), tr("Device in Use"), 
                                 tr("The selected device is already in use, I can't mount it."), 
@@ -31,8 +31,6 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             QMessageBox.critical(s.treeWidget(), tr("Mount Error"), 
                                 tr("Could not mount the selected device:\n")+str(e), 
                                 QMessageBox.Ok, QMessageBox.Ok)
-        finally:
-            s.treeWidget().clear()
 
     def umountAction(s, checked = False):
         try:
@@ -40,16 +38,6 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         except hotplugBackend.MyError, e:
             QMessageBox.critical(s.treeWidget(), tr("UnMount Error"), 
                                 tr("Could not unmount the selected device:\n")+str(e), 
-                                QMessageBox.Ok, QMessageBox.Ok)
-        finally:
-            s.treeWidget().clear()
-
-    def testAction(s, checked = False):
-        try:
-                s.dev().flush()
-        except hotplugBackend.MyError, e:
-            QMessageBox.critical(s.treeWidget(), tr("Test Error"), 
-                                tr("An error ocurred:\n")+str(e), 
                                 QMessageBox.Ok, QMessageBox.Ok)
         finally:
             s.treeWidget().clear()
@@ -150,14 +138,23 @@ class MyTreeWidgetItem(QTreeWidgetItem):
 
 class MyTreeWidget(QTreeWidget):
     __visibleRowCount = None # overall count of rows
+    __timer = None
 
     def __init__(s, parent=None):
         QTreeWidget.__init__(s, parent)
+        s.__timer = QTimer(s)
         # connect some signals/slots
         QObject.connect(s, SIGNAL("customContextMenuRequested(const QPoint&)"), s.contextMenu)
         QObject.connect(s, SIGNAL("itemCollapsed(QTreeWidgetItem *)"), s.itemCollapsedOrExpanded)
         QObject.connect(s, SIGNAL("itemExpanded(QTreeWidgetItem *)"), s.itemCollapsedOrExpanded)
+        QObject.connect(s.__timer, SIGNAL("timeout(void)"), s.refreshLastCmd)
         s.__visibleRowCount = 0
+        s.__timer.start(1000) # good or bad ?
+
+    def refreshLastCmd(s):
+        """Refreshes the tree after msecs milliseconds."""
+        if hotplugBackend.status.lastCmdStatusChanged():
+            s.refreshAction()
 
     def sizeHint(s):
         """Show all entries so that no scrollbar is required"""
@@ -209,6 +206,7 @@ class MyTreeWidget(QTreeWidget):
         menu.popup(pos)
 
     def refreshAction(s, checked = False):
+        print "refreshAction"
         s.clear()
 
     def reset(s):

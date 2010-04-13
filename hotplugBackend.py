@@ -113,6 +113,7 @@ class Status:
     __sudo = None
     __lastCmd = None # Popen object of the last command called
     __lastCmdList = None # command string list of the last command
+    __lastCmdStatus = None # exit status of the recently invoked command
 
     def __init__(s):
         if sys.platform != "linux2":
@@ -163,6 +164,23 @@ class Status:
                                     " ".join(cmdList)+"': \n"+str(e))
         finally:
             s.__lastCmdList = cmdList
+            s.__lastCmdStatus = s.__lastCmd.poll()
+
+# befehl absetzen, status pollt nach beendigung des befehls, überprüft fehlerstatus
+# startet nächsten befehl erst wenn der alte fertig ist (exception in callSysCommand)
+# emittet signal, wenn befehl fertig/erfolgreich
+    def lastCmdFinished(s):
+        if not s.__lastCmd or s.__lastCmd.poll() != None:
+            return True
+        else:
+            return False
+            
+    def lastCmdStatusChanged(s):
+        if s.__lastCmdStatus != s.__lastCmd.poll():
+            s.__lastCmdStatus = s.__lastCmd.poll()
+            return True
+        else: # nothing changed
+            return False
 
     def lastCmdOutput(s):
         """On success, returns a list of output lines."""
@@ -172,10 +190,10 @@ class Status:
 #        time.sleep(0.1) # wait some time for the usual command to finish
     #    if retCode == None:
     #        mountCmd.kill() # probably blocked by hardware, avoid stalling, py v2.6
-        returncode = s.__lastCmd.poll()
-        while returncode == None:
-            returncode = s.__lastCmd.poll()
+        while not s.lastCmdFinished():
             time.sleep(0.1) # wait some time for the command to finish
+        s.lastCmdStatusChanged()
+        returncode = s.__lastCmd.poll()
 #        print "lastCmdOutput, returncode:", returncode
         if returncode != None and returncode != 0:
             stderr = ""
