@@ -52,13 +52,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             s.close()
             
     def contentChanged(s):
-#        print "contentChanged"
-#        print "trr height:", s.treeWidget.size().height()
+        s.treeWidget.adjustSize()
+        s.treeWidget.updateGeometry()
         sh = s.sizeHint()
-        # s.resize(s.treeWidget.sizeHint()) # does not work
         s.setMinimumSize(sh)
         s.setMaximumSize(sh)
-#        print "blubb", s.width(), s.height()
 
 # end MainWindow
 

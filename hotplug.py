@@ -5,7 +5,6 @@ import getopt
 from hotplugCmd import consoleMenu
 from hotplugQt import qtMenu
 
-
 class Usage(Exception):
     def __init__(self, msg):
         self.msg = msg

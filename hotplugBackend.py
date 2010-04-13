@@ -130,6 +130,8 @@ class Status:
                 if os.path.isfile(handlerPath):
                     s.__sudo = handlerPath
                     return
+        else:
+            raise MyError("No sudo handler found: "+str(knownSudoHandlers))
 
     def update(s):
         s.__mountStatus = MountStatus()
@@ -166,8 +168,8 @@ class Status:
             s.__lastCmdList = cmdList
             s.__lastCmdStatus = s.__lastCmd.poll()
 
-# befehl absetzen, status pollt nach beendigung des befehls, überprüft fehlerstatus
-# startet nächsten befehl erst wenn der alte fertig ist (exception in callSysCommand)
+# befehl absetzen, status pollt nach beendigung des befehls, ueberprueft fehlerstatus
+# startet naechsten befehl erst wenn der alte fertig ist (exception in callSysCommand)
 # emittet signal, wenn befehl fertig/erfolgreich
     def lastCmdFinished(s):
         if not s.__lastCmd or s.__lastCmd.poll() != None:
@@ -685,11 +687,13 @@ def getBlkDevPath(devPath):
     """Returns the scsi block device path.
     in: path to the scsi device
     out: path to the associated block device AND the block device name"""
-    if not os.path.isdir(devPath): 
+    if not os.path.isdir(devPath):
         return []
+    print "os.path.isdir", devPath
     devPath = os.path.join(devPath, "block:");
     entries = glob.glob(devPath+"*")
     if not entries:
+        print "not entries"
         return []
     fullPath = entries[0]
     devName = fullPath[len(devPath):]

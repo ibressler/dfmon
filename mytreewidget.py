@@ -31,6 +31,9 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             QMessageBox.critical(s.treeWidget(), tr("Mount Error"), 
                                 tr("Could not mount the selected device:\n")+str(e), 
                                 QMessageBox.Ok, QMessageBox.Ok)
+        finally:
+            # non-blocking action, start status monitor
+            s.treeWidget().startLastCmdMonitor()
 
     def umountAction(s, checked = False):
         try:
@@ -40,6 +43,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
                                 tr("Could not unmount the selected device:\n")+str(e), 
                                 QMessageBox.Ok, QMessageBox.Ok)
         finally:
+            # blocking action, done when reaching this
             s.treeWidget().clear()
 
     def removeAction(s, checked = False):
@@ -52,6 +56,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
                                 tr("An error ocurred:\n")+str(e), 
                                 QMessageBox.Ok, QMessageBox.Ok)
         finally:
+            # blocking action, done when reaching this
             tw.clear()
         if not s.dev().isValid():
             QMessageBox.information(tw, tr("Success"), 
@@ -149,12 +154,15 @@ class MyTreeWidget(QTreeWidget):
         QObject.connect(s, SIGNAL("itemExpanded(QTreeWidgetItem *)"), s.itemCollapsedOrExpanded)
         QObject.connect(s.__timer, SIGNAL("timeout(void)"), s.refreshLastCmd)
         s.__visibleRowCount = 0
-        s.__timer.start(1000) # good or bad ?
 
     def refreshLastCmd(s):
         """Refreshes the tree after msecs milliseconds."""
         if hotplugBackend.status.lastCmdStatusChanged():
             s.refreshAction()
+            s.__timer.stop()
+
+    def startLastCmdMonitor(s):
+        s.__timer.start(1000)
 
     def sizeHint(s):
         """Show all entries so that no scrollbar is required"""
@@ -178,7 +186,6 @@ class MyTreeWidget(QTreeWidget):
         if heightHint > maxHeight:
             heightHint = maxHeight
         hint.setHeight(heightHint)
-#        print "final hint:", hint.width(), hint.height()
         return hint
 
     def contextMenu(s, pos):
@@ -206,7 +213,6 @@ class MyTreeWidget(QTreeWidget):
         menu.popup(pos)
 
     def refreshAction(s, checked = False):
-        print "refreshAction"
         s.clear()
 
     def reset(s):
@@ -217,7 +223,6 @@ class MyTreeWidget(QTreeWidget):
             rootItem.addChild(item)
             item.expandAll()
         s.setVisibleRowCount()
-        s.adjustSize()
         QObject.emit(s, SIGNAL("contentChanged(void)"))
 
     def itemCollapsedOrExpanded(s, item):
@@ -226,7 +231,6 @@ class MyTreeWidget(QTreeWidget):
         else: # collapsed
             item.collapsed()
         s.setVisibleRowCount()
-        s.updateGeometry()
         QObject.emit(s, SIGNAL("contentChanged(void)"))
 
     def setVisibleRowCount(s):
