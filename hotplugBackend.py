@@ -196,7 +196,7 @@ class Status:
             cmdList.insert(0, "--")
             cmdList.insert(0, s.__sudo)
         try:
-            print "callSysCommand:", str(cmdList)
+#            print "callSysCommand:", str(cmdList)
             s.__lastCmd = subprocess.Popen(cmdList, bufsize=-1, 
                                stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         except Exception, e:
