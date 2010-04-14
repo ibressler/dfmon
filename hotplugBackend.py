@@ -522,7 +522,7 @@ class BlockDevice(Device):
             else:
                 status.callSysCommand(["umount", s.mountPoint()], True)
             stdout = status.lastCmdOutput()
-            if len(stdout) > 0:
+            if len(stdout) > 0 and stdout[0] != "passprompt":
                 raise MyError("".join(stdout))
         except MyError, e:
             raise MyError("Failed to umount "+s.ioFile()+": \n"+str(e))
@@ -530,7 +530,7 @@ class BlockDevice(Device):
 
     def flush(s):
         """Flushes the device buffers."""
-        print "flush", s.ioFile()
+#        print "flush", s.ioFile()
         for part in s.__partitions:
             part.flush()
         for holder in s.__holders:
@@ -567,14 +567,10 @@ def addSubDevices(outList, devNameList, basePath):
         queryPath = os.path.join(basePath,devName)
         if not os.path.isdir(queryPath):
             continue
-        try:
-            dev = BlockDevice(queryPath, devName)
-            if not dev.isValid():
-                raise MyError("Not Valid")
-        except MyError, e:
-            print "Could not figure out block device ",devName,"->",e
-        else:
-            outList.append(dev)
+        dev = BlockDevice(queryPath, devName)
+        if not dev.isValid():
+            raise MyError("Not Valid")
+        outList.append(dev)
 
 ### end BlockDevice related stuff
 

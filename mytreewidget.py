@@ -38,7 +38,7 @@ class IoThread(QThread):
 
 class ActionHandler(QObject):
     def doAction(s, text = "", methodObj = None):
-        print "doAction pre"
+#        print "doAction pre"
         if not methodObj:
             return
         try:
@@ -47,7 +47,7 @@ class ActionHandler(QObject):
             QObject.emit(s, SIGNAL("exception(QString, PyQt_PyObject)"), text, e)
         finally:
             QObject.emit(s, SIGNAL("actionDone(void)"))
-        print "doAction post"
+#        print "doAction post"
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     __dev = None # one element list (&reference ?)
@@ -56,55 +56,6 @@ class MyTreeWidgetItem(QTreeWidgetItem):
 
     def dev(s):
         return s.__dev[0]
-
-#    def mountAction1(s, checked = False):
-#        try:
-#            s.dev().mount()
-#        except hotplugBackend.DeviceInUseWarning, w:
-#            QMessageBox.warning(s.treeWidget(), tr("Device in Use"), 
-#                                tr("The selected device is already in use, I can't mount it."), 
-#                                QMessageBox.Ok, QMessageBox.Ok)
-#        except hotplugBackend.DeviceHasPartitionsWarning, w:
-#            QMessageBox.warning(s.treeWidget(), tr("Device contains Partitions"), 
-#                                tr("The selected device contains several partitions.\n")+
-#                                tr("Please select one directly."), 
-#                                QMessageBox.Ok, QMessageBox.Ok)
-#        except hotplugBackend.MyError, e:
-#            QMessageBox.critical(s.treeWidget(), tr("Mount Error"), 
-#                                tr("Could not mount the selected device:\n")+str(e), 
-#                                QMessageBox.Ok, QMessageBox.Ok)
-#        finally:
-#            # non-blocking action, start status monitor
-#            s.treeWidget().startLastCmdMonitor()
-#
-#    def umountAction(s, checked = False):
-#        try:
-##            try:
-#            s.dev().umount()
-#        except hotplugBackend.MyError, e:
-#            QMessageBox.critical(s.treeWidget(), tr("UnMount Error"), 
-#                                tr("Could not unmount the selected device:\n")+str(e), 
-#                                QMessageBox.Ok, QMessageBox.Ok)
-#        finally:
-#            # blocking action, done when reaching this
-#            s.treeWidget().clear()
-#
-#    def removeAction(s, checked = False):
-#        if not s.dev().isScsi(): return
-#        tw = s.treeWidget()
-#        try:
-#                s.dev().remove()
-#        except hotplugBackend.MyError, e:
-#            QMessageBox.critical(s.treeWidget(), tr("Remove Error"), 
-#                                tr("An error ocurred:\n")+str(e), 
-#                                QMessageBox.Ok, QMessageBox.Ok)
-#        finally:
-#            # blocking action, done when reaching this
-#            tw.clear()
-#        if not s.dev().isValid():
-#            QMessageBox.information(tw, tr("Success"), 
-#                                tr("It is safe to unplug the device now."), 
-#                                QMessageBox.Ok, QMessageBox.Ok)
 
     # setup methods
 
@@ -212,18 +163,9 @@ class MyTreeWidget(QTreeWidget):
                             s.refreshAction, Qt.QueuedConnection)
             QObject.connect(s.__ioThread.actionHandler, 
                             SIGNAL("exception(QString, PyQt_PyObject)"), 
-                            s.actionExceptionHandler, Qt.QueuedConnection)
+                            s.exceptionHandler, Qt.QueuedConnection)
             QObject.connect(s.__ioThread.timer, SIGNAL("timeout(void)"), 
                             s.refreshActionIfNeeded, Qt.QueuedConnection)
-
-#    def refreshLastCmd(s):
-#        """Refreshes the tree after msecs milliseconds."""
-#        if hotplugBackend.status.lastCmdStatusChanged():
-#            s.refreshAction()
-#            s.__timer.stop()
-#
-#    def startLastCmdMonitor(s):
-#        s.__timer.start(1000)
 
     def sizeHint(s):
         """Show all entries so that no scrollbar is required"""
@@ -279,7 +221,7 @@ class MyTreeWidget(QTreeWidget):
         pos.setY(pos.y() + s.header().sizeHint().height())
         menu.popup(pos)
 
-    def actionExceptionHandler(s, text = "", e = None):
+    def exceptionHandler(s, text = "", e = None):
         if not e: return
         failureText = QString("Action '%1' failed: \n").arg(text)
         try:
@@ -310,19 +252,34 @@ class MyTreeWidget(QTreeWidget):
         or hotplugBackend.status.mountStatusChanged():
             # wait a moment after change detected 
             # (let the system create device files, etc..)
-            QTimer.singleShot(s.__ioThread.checkInterval, s.refreshAction)
+            # sometimes, an exception occurs here (for 500ms delay):
+            # "Could not find IO device path" BlockDevice.__init__()
+            QTimer.singleShot(int(2*s.__ioThread.checkInterval), s.refreshAction)
 
     def refreshAction(s, checked = False):
-        print "refreshAction"
+        """Updates items as needed"""
+# add recursive __eq__/__ne__ to Scsi/BlockDevice
+# get status, compare new devices with those in the tree
+# if name is the same, remove and add new one at same position
+# otherwise remove obsolete items, add new ones on top (ignore time -> bus reset)
+#        print "refreshAction"
+#        rootItem = s.invisibleRootItem()
+#        for i in range(0, rootItem.childCount()):
+#            print rootItem.child(i).text(0)
         s.clear()
 
     def reset(s):
+        """Deletes all items and rebuild the tree"""
         QTreeWidget.reset(s)
         rootItem = s.invisibleRootItem()
-        for dev in hotplugBackend.status.getDevices():
-            item = MyTreeWidgetItem(dev)
-            rootItem.addChild(item)
-            item.expandAll()
+        try:
+            for dev in hotplugBackend.status.getDevices():
+#                print "dev:", dev.scsiStr()
+                item = MyTreeWidgetItem(dev)
+                rootItem.addChild(item)
+                item.expandAll()
+        except Exception, e:
+            s.exceptionHandler(tr("refresh"), e)
         s.setVisibleRowCount()
         QObject.emit(s, SIGNAL("contentChanged(void)"))
 
