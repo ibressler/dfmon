@@ -84,31 +84,32 @@ def getLineFromFile(filename):
     fd.close()
     return text
 
-class MyError(UserWarning):
-    def __init__(s, msg):
-        UserWarning.__init__(s)
+class MyError(StandardError):
+    def __init__(s, msg = ""):
+        StandardError.__init__(s)
         s.msg = msg
     def __str__(s):
         return str(s.msg)
     def __repr__(s):
         return repr(s.msg)
 
-class CmdReturnCodeError(UserWarning):
-    def __init__(s, returnCode, stderr):
-        UserWarning.__init__(s)
+class CmdReturnCodeError(StandardError):
+    def __init__(s, returnCode = 0, stderr = ""):
+        StandardError.__init__(s)
         s.returnCode = returnCode
         s.stderr = stderr
     def __str__(s):
         return "CmdReturnCodeError: "+str(s.returnCode)
 
 class DeviceInUseWarning(UserWarning): pass
-class DeviceHasPartitions(UserWarning): pass
-class MissingPrivileges(UserWarning): pass
+class DeviceHasPartitionsWarning(UserWarning): pass
+class RemovalSuccessInfo(Exception): pass
 
 class Status:
     """Retrieves system status regarding Scsi, associated block devices and mountpoints."""
     __mountStatus = None
     __swapStatus = None
+    __devStatus = None
     __devList = None # list of devices
     __sudo = None
     __lastCmd = None # Popen object of the last command called
@@ -134,23 +135,60 @@ class Status:
             raise MyError("No sudo handler found: "+str(knownSudoHandlers))
 
     def update(s):
-        s.__mountStatus = MountStatus()
+        s.devStatusChanged()
+        s.mountStatusChanged()
         s.__swapStatus = SwapStatus()
         s.__devList = getScsiDevices(OsSysPath)
+    
+    def devStatusChanged(s):
+        devStatus = [os.path.basename(p) for p in glob.glob(OsSysPath+os.sep+"*")]
+        if not s.__devStatus or len(s.__devStatus) != len(devStatus):
+            s.__devStatus = devStatus
+            return True
+        # compare lists, same length
+        for d in s.__devStatus:
+            if not d in devStatus:
+                s.__devStatus = devStatus
+                return True
+        return False
+        
+    def mountStatusChanged(s):
+        mountStatus = MountStatus()
+        if not s.__mountStatus or s.__mountStatus != mountStatus:
+            s.__mountStatus = mountStatus
+            return True
+        return False
 
     def getDevices(s):
         s.update()
         return s.__devList
 
-    def lastCmdName(s):
-        if not s.__lastCmdList or not s.__lastCmdList[0]:
-            return ""
-        return str(s.__lastCmdList[0])
-
     def swap(s): return s.__swapStatus
     def mount(s): return s.__mountStatus
 
+# thread model proposal for Status class:
+# ---------------------------------------
+# Turn this Status object into a Thread where the run() method executes the
+# actions send by the GUI (mytreewidgetitem). This allows blocking operations 
+# while maintaining responsiveness of the GUI window
+#   Status.getDevices() will stay a regular class method and will deliver the list 
+# of block devices to treewidget.reset(). mytreewidgetitem will add a method object 
+# (BlockDevice) and a name to a Queue (does python this by reference or deepcopy ?)
+# The Status.run() picks an action from that Queue or blocks until there are actions
+# (other Status class methods should still be available, afaik)
+# Status.run() calls the received method object and raises an error if there was 
+# one. On success it emitts a signal for update (ideally, treewidget.reset())
+#   Problem: Over time, there is a stack of actions but the tree/devicelist changes
+# after every action. Both get out of sync (if this works at all). The BlockDevice
+# method objects for an action do not match the Status.getDevices() objects when 
+# the action is executed.
+
+# below, system command execution code
+
     def callSysCommand(s, cmdList, sudoFlag = False):
+        """Calls a system command in a subprocess asynchronously.
+        Does not block. Raises an exception if the command was not found.
+        """
         if not cmdList or len(cmdList) <= 0:
             return
         if sudoFlag:
@@ -158,7 +196,7 @@ class Status:
             cmdList.insert(0, "--")
             cmdList.insert(0, s.__sudo)
         try:
-#            print "callSysCommand:", str(cmdList)
+            print "callSysCommand:", str(cmdList)
             s.__lastCmd = subprocess.Popen(cmdList, bufsize=-1, 
                                stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         except Exception, e:
@@ -168,9 +206,6 @@ class Status:
             s.__lastCmdList = cmdList
             s.__lastCmdStatus = s.__lastCmd.poll()
 
-# befehl absetzen, status pollt nach beendigung des befehls, ueberprueft fehlerstatus
-# startet naechsten befehl erst wenn der alte fertig ist (exception in callSysCommand)
-# emittet signal, wenn befehl fertig/erfolgreich
     def lastCmdFinished(s):
         if not s.__lastCmd or s.__lastCmd.poll() != None:
             return True
@@ -185,27 +220,28 @@ class Status:
             return False
 
     def lastCmdOutput(s):
-        """On success, returns a list of output lines."""
+        """Blocks until the last command finished.
+        On success, returns a list of output lines.
+        Raises an exception if the return code of the last command is not 0.
+        """
         if not s.__lastCmd: 
             return []
-        #while s.__lastCmd.returncode == None:
-#        time.sleep(0.1) # wait some time for the usual command to finish
-    #    if retCode == None:
-    #        mountCmd.kill() # probably blocked by hardware, avoid stalling, py v2.6
         while not s.lastCmdFinished():
             time.sleep(0.1) # wait some time for the command to finish
         s.lastCmdStatusChanged()
         returncode = s.__lastCmd.poll()
-#        print "lastCmdOutput, returncode:", returncode
+        stderr = ""
+        if s.__lastCmd.stderr != None:
+            stderr = "\n".join(s.__lastCmd.stderr.readlines())
         if returncode != None and returncode != 0:
-            stderr = ""
-            if s.__lastCmd.stderr != None:
-                stderr = "\n".join(s.__lastCmd.stderr.readlines())
             raise CmdReturnCodeError(returncode, stderr)
         # no error
         stdout = []
         if s.__lastCmd.stdout != None:
-                stdout = s.__lastCmd.stdout.readlines()
+            stdout = s.__lastCmd.stdout.readlines()
+#        print "retcode:", returncode
+#        print "stderr:", "'"+stderr+"'"
+#        print "stdout:", "'"+"\n".join(stdout)+"'"
         return stdout
 
 class SwapStatus:
@@ -244,6 +280,15 @@ class MountStatus:
         """Returns the output of the 'mount' command, line by line"""
         status.callSysCommand(["mount"])
         s.__mountData = status.lastCmdOutput()
+        
+    def __eq__(s, other):
+        return "".join(s.__mountData) == "".join(other.data())
+        
+    def __ne__(s, other):
+        return not s.__eq__(other)
+        
+    def data(s):
+        return s.__mountData
 
     def getMountPoint(s, ioFile):
         if not s.__mountData or len(s.__mountData) < 1:
@@ -263,7 +308,7 @@ class MountStatus:
 class Device:
     __sysfsPath = None # path to the device descriptor in /sys/
 
-    def __init__(s, path):
+    def __init__(s, path = ""):
         path = os.path.realpath(path)
         s.setSysfs(path)
 
@@ -347,7 +392,8 @@ class BlockDevice(Device):
         s.getDeviceNumber()
         s.__ioFile = getIoFilename(s.__devNum)
         if not os.path.exists(s.__ioFile):
-            raise MyError("Could not find IO device path")
+            raise MyError("Could not find IO device path '"
+                          +s.__ioFile+"'")
         s.update()
         # final verification
         if not s.isValid():
@@ -450,12 +496,13 @@ class BlockDevice(Device):
             else:
                 try:
                     status.callSysCommand(["truecrypt", "--mount", s.ioFile()])
+                    status.lastCmdOutput()
                 except MyError, e:
                     raise MyError("Failed to mount "+s.ioFile()+": "+str(e))
         elif len(s.__partitions) == 1:
             s.__partitions[0].mount()
         else:
-            raise DeviceHasPartitions()
+            raise DeviceHasPartitionsWarning()
         s.update()
 
     def umount(s):
@@ -470,16 +517,13 @@ class BlockDevice(Device):
         isTruecrypt = strInList("truecrypt")
         try:
             if isTruecrypt(s.__ioFile):
-                status.callSysCommand(["truecrypt", "-t", "-d", s.mountPoint()])
+                # --non-interactive
+                status.callSysCommand(["truecrypt", "-t", "--non-interactive", "-d", s.mountPoint()], True)
             else:
-                status.callSysCommand(["umount", s.mountPoint()])
-            try: # check for errors
-                status.lastCmdOutput()
-            except CmdReturnCodeError, e:
-                if status.lastCmdName() == "umount" and e.returnCode == 2: # privileges error
-                    raise MyError("You do not have the required privileges.")
-                else:
-                    raise MyError(e.stderr)
+                status.callSysCommand(["umount", s.mountPoint()], True)
+            stdout = status.lastCmdOutput()
+            if len(stdout) > 0:
+                raise MyError("".join(stdout))
         except MyError, e:
             raise MyError("Failed to umount "+s.ioFile()+": \n"+str(e))
         s.update()
@@ -670,6 +714,9 @@ class ScsiDevice(Device):
                     status.lastCmdOutput()
                 except CmdReturnCodeError, e:
                     raise MyError("CmdReturnCodeError: "+str(e.returnCode)+"\n"+e.stderr)
+                else:
+                    if not s.isValid():
+                        raise RemovalSuccessInfo()
 
     def __str__(s):
         """Outputs full detailed information about this devices"""
@@ -688,15 +735,17 @@ def getBlkDevPath(devPath):
     in: path to the scsi device
     out: path to the associated block device AND the block device name"""
     if not os.path.isdir(devPath):
-        return []
-    print "os.path.isdir", devPath
-    devPath = os.path.join(devPath, "block:");
-    entries = glob.glob(devPath+"*")
+        return ("", "")
+    # old style
+    devPath = os.path.join(devPath, "block")
+    entries = glob.glob(devPath+":*")
     if not entries:
-        print "not entries"
-        return []
+        # new style
+        entries = glob.glob(devPath+os.sep+"*")
+    if not entries: # still not found
+        return ("", "")
     fullPath = entries[0]
-    devName = fullPath[len(devPath):]
+    devName = fullPath[len(devPath)+1:]
     return (fullPath, devName)
 
 # how to improve this ? is there a direct way to get the device file ?

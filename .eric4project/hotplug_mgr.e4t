@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project hotplug_mgr -->
-<!-- Saved: 2010-04-13, 04:10:11 -->
+<!-- Saved: 2010-04-13, 21:22:54 -->
 <Tasks version="4.2">
   <Task priority="1" completed="False" bugfix="False">
     <Summary>cmd status polling</Summary>
@@ -14,7 +14,7 @@
     <Created>2010-04-13, 02:24:17</Created>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
-    <Summary>fix karmic issues</Summary>
+    <Summary>test on karmic &amp; others</Summary>
     <Description></Description>
     <Created>2010-04-13, 04:09:57</Created>
   </Task>

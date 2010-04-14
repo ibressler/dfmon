@@ -1,11 +1,53 @@
 import time
+import cPickle
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import hotplugBackend
 from hotplugBackend import formatSize, formatTimeDistance
 
 def tr(s):
-   return QCoreApplication.translate(None, s)
+    return QCoreApplication.translate(None, s)
+
+class MyAction(QAction):
+
+    def __init__(s, methodObj = None, text = "", parent = None):
+        QAction.__init__(s, text, parent)
+        s.methodObj = methodObj
+        QObject.connect(s, SIGNAL("triggered(bool)"), s.triggerAction)
+
+    def triggerAction(s, checked = False):
+        if s.methodObj:
+            QObject.emit(s, SIGNAL("triggered(QString, PyQt_PyObject)"), \
+                                            s.text(), s.methodObj)
+
+class IoThread(QThread):
+    checkInterval = 500
+
+    def __init__(s, parent = None):
+        QThread.__init__(s, parent)
+
+    def run(s):
+        s.actionHandler = ActionHandler()
+        s.timer = QTimer()
+        s.timer.start(s.checkInterval)
+        s.exec_()
+
+    def stop(s):
+        s.timer.stop()
+        s.quit()
+
+class ActionHandler(QObject):
+    def doAction(s, text = "", methodObj = None):
+        print "doAction pre"
+        if not methodObj:
+            return
+        try:
+            methodObj()
+        except Exception, e:
+            QObject.emit(s, SIGNAL("exception(QString, PyQt_PyObject)"), text, e)
+        finally:
+            QObject.emit(s, SIGNAL("actionDone(void)"))
+        print "doAction post"
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     __dev = None # one element list (&reference ?)
@@ -15,53 +57,54 @@ class MyTreeWidgetItem(QTreeWidgetItem):
     def dev(s):
         return s.__dev[0]
 
-    def mountAction(s, checked = False):
-        try:
-            s.dev().mount()
-        except hotplugBackend.DeviceInUseWarning, w:
-            QMessageBox.warning(s.treeWidget(), tr("Device in Use"), 
-                                tr("The selected device is already in use, I can't mount it."), 
-                                QMessageBox.Ok, QMessageBox.Ok)
-        except hotplugBackend.DeviceHasPartitions, w:
-            QMessageBox.warning(s.treeWidget(), tr("Device contains Partitions"), 
-                                tr("The selected device contains several partitions.\n")+
-                                tr("Please select one directly."), 
-                                QMessageBox.Ok, QMessageBox.Ok)
-        except hotplugBackend.MyError, e:
-            QMessageBox.critical(s.treeWidget(), tr("Mount Error"), 
-                                tr("Could not mount the selected device:\n")+str(e), 
-                                QMessageBox.Ok, QMessageBox.Ok)
-        finally:
-            # non-blocking action, start status monitor
-            s.treeWidget().startLastCmdMonitor()
-
-    def umountAction(s, checked = False):
-        try:
-                s.dev().umount()
-        except hotplugBackend.MyError, e:
-            QMessageBox.critical(s.treeWidget(), tr("UnMount Error"), 
-                                tr("Could not unmount the selected device:\n")+str(e), 
-                                QMessageBox.Ok, QMessageBox.Ok)
-        finally:
-            # blocking action, done when reaching this
-            s.treeWidget().clear()
-
-    def removeAction(s, checked = False):
-        if not s.dev().isScsi(): return
-        tw = s.treeWidget()
-        try:
-                s.dev().remove()
-        except hotplugBackend.MyError, e:
-            QMessageBox.critical(s.treeWidget(), tr("Remove Error"), 
-                                tr("An error ocurred:\n")+str(e), 
-                                QMessageBox.Ok, QMessageBox.Ok)
-        finally:
-            # blocking action, done when reaching this
-            tw.clear()
-        if not s.dev().isValid():
-            QMessageBox.information(tw, tr("Success"), 
-                                tr("It is safe to unplug the device now."), 
-                                QMessageBox.Ok, QMessageBox.Ok)
+#    def mountAction1(s, checked = False):
+#        try:
+#            s.dev().mount()
+#        except hotplugBackend.DeviceInUseWarning, w:
+#            QMessageBox.warning(s.treeWidget(), tr("Device in Use"), 
+#                                tr("The selected device is already in use, I can't mount it."), 
+#                                QMessageBox.Ok, QMessageBox.Ok)
+#        except hotplugBackend.DeviceHasPartitionsWarning, w:
+#            QMessageBox.warning(s.treeWidget(), tr("Device contains Partitions"), 
+#                                tr("The selected device contains several partitions.\n")+
+#                                tr("Please select one directly."), 
+#                                QMessageBox.Ok, QMessageBox.Ok)
+#        except hotplugBackend.MyError, e:
+#            QMessageBox.critical(s.treeWidget(), tr("Mount Error"), 
+#                                tr("Could not mount the selected device:\n")+str(e), 
+#                                QMessageBox.Ok, QMessageBox.Ok)
+#        finally:
+#            # non-blocking action, start status monitor
+#            s.treeWidget().startLastCmdMonitor()
+#
+#    def umountAction(s, checked = False):
+#        try:
+##            try:
+#            s.dev().umount()
+#        except hotplugBackend.MyError, e:
+#            QMessageBox.critical(s.treeWidget(), tr("UnMount Error"), 
+#                                tr("Could not unmount the selected device:\n")+str(e), 
+#                                QMessageBox.Ok, QMessageBox.Ok)
+#        finally:
+#            # blocking action, done when reaching this
+#            s.treeWidget().clear()
+#
+#    def removeAction(s, checked = False):
+#        if not s.dev().isScsi(): return
+#        tw = s.treeWidget()
+#        try:
+#                s.dev().remove()
+#        except hotplugBackend.MyError, e:
+#            QMessageBox.critical(s.treeWidget(), tr("Remove Error"), 
+#                                tr("An error ocurred:\n")+str(e), 
+#                                QMessageBox.Ok, QMessageBox.Ok)
+#        finally:
+#            # blocking action, done when reaching this
+#            tw.clear()
+#        if not s.dev().isValid():
+#            QMessageBox.information(tw, tr("Success"), 
+#                                tr("It is safe to unplug the device now."), 
+#                                QMessageBox.Ok, QMessageBox.Ok)
 
     # setup methods
 
@@ -143,26 +186,44 @@ class MyTreeWidgetItem(QTreeWidgetItem):
 
 class MyTreeWidget(QTreeWidget):
     __visibleRowCount = None # overall count of rows
-    __timer = None
+    __ioThread = None
 
     def __init__(s, parent=None):
         QTreeWidget.__init__(s, parent)
-        s.__timer = QTimer(s)
+        s.__ioThread = IoThread(s)
         # connect some signals/slots
         QObject.connect(s, SIGNAL("customContextMenuRequested(const QPoint&)"), s.contextMenu)
         QObject.connect(s, SIGNAL("itemCollapsed(QTreeWidgetItem *)"), s.itemCollapsedOrExpanded)
         QObject.connect(s, SIGNAL("itemExpanded(QTreeWidgetItem *)"), s.itemCollapsedOrExpanded)
-        QObject.connect(s.__timer, SIGNAL("timeout(void)"), s.refreshLastCmd)
+        QObject.connect(s.__ioThread, SIGNAL("started(void)"), s.connectIoThread)
         s.__visibleRowCount = 0
+        s.__ioThread.start()
 
-    def refreshLastCmd(s):
-        """Refreshes the tree after msecs milliseconds."""
-        if hotplugBackend.status.lastCmdStatusChanged():
-            s.refreshAction()
-            s.__timer.stop()
+    def closeEvent(s, event):
+        s.__ioThread.stop()
+        while not s.__ioThread.isFinished():
+            s.__ioThread.wait()
+        QTreeWidget.closeEvent(s, event)
 
-    def startLastCmdMonitor(s):
-        s.__timer.start(1000)
+    def connectIoThread(s):
+        if s.__ioThread.isRunning():
+            QObject.connect(s.__ioThread.actionHandler, 
+                            SIGNAL("actionDone(void)"), 
+                            s.refreshAction, Qt.QueuedConnection)
+            QObject.connect(s.__ioThread.actionHandler, 
+                            SIGNAL("exception(QString, PyQt_PyObject)"), 
+                            s.actionExceptionHandler, Qt.QueuedConnection)
+            QObject.connect(s.__ioThread.timer, SIGNAL("timeout(void)"), 
+                            s.refreshActionIfNeeded, Qt.QueuedConnection)
+
+#    def refreshLastCmd(s):
+#        """Refreshes the tree after msecs milliseconds."""
+#        if hotplugBackend.status.lastCmdStatusChanged():
+#            s.refreshAction()
+#            s.__timer.stop()
+#
+#    def startLastCmdMonitor(s):
+#        s.__timer.start(1000)
 
     def sizeHint(s):
         """Show all entries so that no scrollbar is required"""
@@ -192,16 +253,22 @@ class MyTreeWidget(QTreeWidget):
         item = s.itemAt(pos)
         menu = QMenu(s)
         if item.dev().isScsi():
-            removeAction = QAction(tr("umount all && remove"), menu)
-            QObject.connect(removeAction, SIGNAL("triggered(bool)"), item.removeAction)
+            removeAction = MyAction(item.dev().remove, tr("umount all && remove"), menu)
+            if s.__ioThread.isRunning():
+                QObject.connect(removeAction, SIGNAL("triggered(QString, PyQt_PyObject)"), 
+                            s.__ioThread.actionHandler.doAction, Qt.QueuedConnection)
             menu.addAction(removeAction)
         if item.dev().inUse():
-            umountAction = QAction(tr("umount"), menu)
-            QObject.connect(umountAction, SIGNAL("triggered(bool)"), item.umountAction)
+            umountAction = MyAction(item.dev().umount, tr("umount"), menu)
+            if s.__ioThread.isRunning():
+                QObject.connect(umountAction, SIGNAL("triggered(QString, PyQt_PyObject)"), 
+                            s.__ioThread.actionHandler.doAction, Qt.QueuedConnection)
             menu.addAction(umountAction)
         else: # not in use
-            mountAction = QAction(tr("mount with truecrypt"), menu)
-            QObject.connect(mountAction, SIGNAL("triggered(bool)"), item.mountAction)
+            mountAction = MyAction(item.dev().mount, tr("mount with truecrypt"), menu)
+            if s.__ioThread.isRunning():
+                QObject.connect(mountAction, SIGNAL("triggered(QString, PyQt_PyObject)"), 
+                            s.__ioThread.actionHandler.doAction, Qt.QueuedConnection)
             menu.addAction(mountAction)
         menu.addSeparator()
         refreshAction = QAction(tr("refresh all"), menu)
@@ -212,7 +279,41 @@ class MyTreeWidget(QTreeWidget):
         pos.setY(pos.y() + s.header().sizeHint().height())
         menu.popup(pos)
 
+    def actionExceptionHandler(s, text = "", e = None):
+        if not e: return
+        failureText = QString("Action '%1' failed: \n").arg(text)
+        try:
+            raise e
+        except hotplugBackend.DeviceInUseWarning, w:
+            QMessageBox.warning(s, tr("Device in Use"), 
+                                failureText+
+                                tr("The selected device is already in use."), 
+                                QMessageBox.Ok, QMessageBox.Ok)
+        except hotplugBackend.DeviceHasPartitionsWarning, w:
+            QMessageBox.warning(s, tr("Device contains Partitions"), 
+                                failureText+
+                                tr("The selected device contains several partitions.\n")+
+                                tr("Please select one directly."), 
+                                QMessageBox.Ok, QMessageBox.Ok)
+        except hotplugBackend.MyError, e:
+            QMessageBox.critical(s, tr("An Error Occurred"), 
+                                failureText+
+                                str(e), 
+                                QMessageBox.Ok, QMessageBox.Ok)
+        except hotplugBackend.RemovalSuccessInfo, e:
+            QMessageBox.information(s, tr("Success"), 
+                    tr("It is safe to unplug the device now."), 
+                    QMessageBox.Ok, QMessageBox.Ok)
+
+    def refreshActionIfNeeded(s, checked = False):
+        if hotplugBackend.status.devStatusChanged() \
+        or hotplugBackend.status.mountStatusChanged():
+            # wait a moment after change detected 
+            # (let the system create device files, etc..)
+            QTimer.singleShot(s.__ioThread.checkInterval, s.refreshAction)
+
     def refreshAction(s, checked = False):
+        print "refreshAction"
         s.clear()
 
     def reset(s):

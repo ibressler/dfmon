@@ -19,7 +19,7 @@ def showUsage(argv):
     msg = "USAGE: " + cmdName(argv) + " <option>\n"
     msg += "    Where <option> is one of:\n"
     msg += "    -c      command line mode\n"
-    msg += "    No option starts the GUI mode.\n"
+    msg += "    No option starts the GUI mode."
     return msg
 
 def main(argv=None):
@@ -35,11 +35,10 @@ def main(argv=None):
         print >>sys.stderr, cmdName(argv)+": For help use --help"
         return 2
 #    print "opts:", opts, "args:", args
-#    print "test:", unicode("-h")
-    if (unicode("-h"), "") in opts:
+    if (unicode("-h"), "") in opts or (unicode("--help"), "") in opts:
         print >>sys.stdout, showUsage(argv)
         return 0
-    elif (unicode("-c"), "") in opts:
+    elif (unicode("-c"), "") in opts or (unicode("--console"), "") in opts:
         return consoleMenu()
     else:
         return qtMenu(argv)
