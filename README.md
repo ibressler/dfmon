@@ -11,18 +11,19 @@ running system. Recent Linux distributions support this for USB devices but
 not for SATA devices directly, afaik (the author). Please tell me, if I'm
 wrong, or if this is not supported by the kernel at all.
 
-Device removal preparation follows this guide by Redhat:
-http://www.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/html/Online_Storage_Reconfiguration_Guide/removing_devices.html
-(except for LVM, md or multipath setups - to keep it simple for the beginning)
+Device removal preparation follows [a guide from Redhat] [1]. Except for LVM,
+md or multipath setups - to keep it simple for the beginning.
+
+[1]: http://www.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/html/Online_Storage_Reconfiguration_Guide/removing_devices.html
 
 Invokation
 ----------
 
 The GUI is invoked like so:
-$ python dfmon.py
+	$ python dfmon.py
 
 There is a (very) rudimentary command line interface:
-$ python dfmon.py -c
+	$ python dfmon.py -c
 which does only little more than displaying the system status.
 
 Requirements
@@ -35,7 +36,7 @@ Requirements
   otherwise, you should call it with sudo 
 
 On Ubuntu, the necessary dependencies are resolved and installed by:
-$ sudo apt-get install python-qt4
+	$ sudo apt-get install python-qt4
 
 Developed and heavily tested on Kubuntu 8.04 (python 2.5, PyQt 4.3) and
 roughly tested on Ubuntu 9.10, OpenSuse 11.
