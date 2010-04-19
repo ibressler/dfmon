@@ -1,4 +1,24 @@
-"""Qt GUI for the hotplug manager
+# hotplugQt.py
+#
+# This file is part of dfmon.
+#
+# dfmon is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# dfmon is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with dfmon.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#     Ingo Bressler (April 2010)
+
+"""Qt GUI for dfmon.
 """
 
 import sys
@@ -10,7 +30,7 @@ def tr(s):
    return QCoreApplication.translate(None, s)
 
 class MyItemDelegate(QItemDelegate):
-
+    """Row color based on device usage state."""
     def __init__(s, parent = None):
         QItemDelegate.__init__(s, parent)
 
@@ -38,8 +58,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         headerItem = s.treeWidget.headerItem()
         headerItem.setText(0,tr("available devices"))
         headerItem.setTextAlignment(0, Qt.AlignHCenter)
-        headerItem.setToolTip(0,s.windowTitle()
-                              +tr("\nFor information, feedback and contributions, please visit URL."))
+        headerItem.setToolTip(0, QString("%1 %2").arg(s.windowTitle(), "0.1")
+                            +QString("\n%1").arg(u"Copyright (C) 2010  Ingo Bressler")
+                            +QString("\n%1\n%2\n%3").arg("This program comes with ABSOLUTELY", "NO WARRANTY. This is free software, use", "and redistribute it under the terms of the GPLv3.")
+                            +QString("\n%1\n%2").arg(tr("For information, feedback and contributions, please visit:"), "URL"))
         s.treeWidget.setMouseTracking(True)
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.updateGeometry)
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.centralwidget.updateGeometry)
@@ -48,6 +70,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def keyPressEvent(s, keyEvent):
         QMainWindow.keyPressEvent(s, keyEvent)
+        # <esc> closes the window/application
         if keyEvent.key() == Qt.Key_Escape:
             s.close()
             

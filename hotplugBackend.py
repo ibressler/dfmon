@@ -1,4 +1,24 @@
-"""hotplug mgr backend intelligence
+# hotplugBackend.py
+#
+# This file is part of dfmon.
+#
+# dfmon is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# dfmon is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with dfmon.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#     Ingo Bressler (April 2010)
+
+"""dfmon backend intelligence
 
 Device removal procedure follows recommendations at:
 http://www.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/html/Online_Storage_Reconfiguration_Guide/removing_devices.html
@@ -521,9 +541,9 @@ class BlockDevice(Device):
                 status.callSysCommand(["truecrypt", "-t", "--non-interactive", "-d", s.mountPoint()], True)
             else:
                 status.callSysCommand(["umount", s.mountPoint()], True)
-            stdout = status.lastCmdOutput()
-            if len(stdout) > 0 and stdout[0] != "passprompt":
-                raise MyError("".join(stdout))
+            stdout = "".join(status.lastCmdOutput())
+            if len(stdout) > 0 and stdout != "passprompt":
+                raise MyError(stdout)
         except MyError, e:
             raise MyError("Failed to umount "+s.ioFile()+": \n"+str(e))
         s.update()

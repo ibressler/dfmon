@@ -1,3 +1,30 @@
+# mytreewidget.py
+#
+# This file is part of dfmon.
+#
+# dfmon is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# dfmon is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with dfmon.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#     Ingo Bressler (April 2010)
+
+"""QTreeWidget subclass for the tree structure of the Qt-GUI of dfmon.
+
+Initial motivation was a custom sizeHint (fixed to fit the content).
+But also data access (Scsi- and BlockDevice) and action processing is 
+implemented here.
+"""
+
 import time
 import cPickle
 from PyQt4.QtCore import *
@@ -5,10 +32,11 @@ from PyQt4.QtGui import *
 import hotplugBackend
 from hotplugBackend import formatSize, formatTimeDistance
 
-def tr(s):
+def tr(s): # translation shortcut
     return QCoreApplication.translate(None, s)
 
 class MyAction(QAction):
+    """Forwards the associated method (object)."""
 
     def __init__(s, methodObj = None, text = "", parent = None):
         QAction.__init__(s, text, parent)
@@ -21,6 +49,8 @@ class MyAction(QAction):
                                             s.text(), s.methodObj)
 
 class IoThread(QThread):
+    """Runs device actions (system commands) in the background and polls 
+    for status changes."""
     checkInterval = 500
 
     def __init__(s, parent = None):
@@ -37,6 +67,7 @@ class IoThread(QThread):
         s.quit()
 
 class ActionHandler(QObject):
+    """Executes an action on a certain device (methodObj)."""
     def doAction(s, text = "", methodObj = None):
 #        print "doAction pre"
         if not methodObj:
@@ -50,6 +81,8 @@ class ActionHandler(QObject):
 #        print "doAction post"
 
 class MyTreeWidgetItem(QTreeWidgetItem):
+    """An item (row) in the GUI device tree. Has an associated device and 
+    keeps track of the existing and visible children of a node."""
     __dev = None # one element list (&reference ?)
     __overallChildCount = None
     __visibleChildCount = None

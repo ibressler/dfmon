@@ -2,7 +2,7 @@
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow" >
   <property name="windowTitle" >
-   <string>Hotplug Manager</string>
+   <string>dfmon</string>
   </property>
   <widget class="QWidget" name="centralwidget" >
    <layout class="QVBoxLayout" name="verticalLayout" >

@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project hotplug_mgr -->
-<!-- Saved: 2010-04-13, 21:22:54 -->
+<!-- Saved: 2010-04-15, 12:22:26 -->
 <Tasks version="4.2">
   <Task priority="1" completed="False" bugfix="False">
-    <Summary>cmd status polling</Summary>
-    <Description></Description>
-    <Created>2010-04-13, 02:24:00</Created>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
     <Summary>known bugs: kdesudo return code</Summary>
-    <Description></Description>
+    <Description>how to know if a command was actually executed if the sudo dialog is aborted ?</Description>
     <Created>2010-04-13, 02:24:17</Created>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
     <Summary>test on karmic &amp; others</Summary>
     <Description></Description>
     <Created>2010-04-13, 04:09:57</Created>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>keep sorting after refresh</Summary>
+    <Description></Description>
+    <Created>2010-04-14, 21:57:07</Created>
   </Task>
 </Tasks>

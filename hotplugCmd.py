@@ -1,3 +1,25 @@
+# hotplugCmd.py
+#
+# This file is part of dfmon.
+#
+# dfmon is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# dfmon is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with dfmon.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#     Ingo Bressler (April 2010)
+
+"""Commandline interface for dfmon (rudimentary).
+"""
 
 import time
 import hotplugBackend
@@ -35,7 +57,8 @@ def formatBlkDev(blkDev, lvl, prefix):
     return res
 
 def printTable(listArr):
-    """Prints a table with optimal column width. Input is a list of rows which are lists of strings"""
+    """Prints a table with optimal column width. 
+    Input is a list of rows which are lists of strings"""
     colWidth = []
     # determine optimal width of each column
     for col in range(0,len(listArr[0])):
