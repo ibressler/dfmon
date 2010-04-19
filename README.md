@@ -38,10 +38,10 @@ Requirements
 On Ubuntu, the necessary dependencies are resolved and installed by:
 	$ sudo apt-get install python-qt4
 
-Developed and heavily tested on Kubuntu 8.04 (python 2.5, PyQt 4.3) and
-roughly tested on Ubuntu 9.10, OpenSuse 11.
-(with more recent version of python and Qt)
-Fedora 12 does not work properly because of missing gksu ...
+* Developed and heavily tested on Kubuntu 8.04 (python 2.5, PyQt 4.3) and
+* roughly tested on Ubuntu 9.10, OpenSuse 11.
+  (with more recent version of python and Qt)
+* Fedora 12 does not work properly because of missing gksu ...
 
 Personal Note
 -------------
