@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project dfmon -->
-<!-- Saved: 2010-04-19, 22:47:58 -->
+<!-- Saved: 2010-04-20, 00:40:21 -->
 <Tasks version="4.2">
   <Task priority="1" completed="False" bugfix="False">
     <Summary>known bugs: kdesudo return code</Summary>
@@ -17,5 +17,15 @@
     <Summary>keep sorting after refresh</Summary>
     <Description></Description>
     <Created>2010-04-14, 21:57:07</Created>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>QThread: Destroyed while thread is still running</Summary>
+    <Description></Description>
+    <Created>2010-04-20, 00:28:30</Created>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>sudo fallback: ask for pwd dialog (fedora)</Summary>
+    <Description></Description>
+    <Created>2010-04-20, 00:29:00</Created>
   </Task>
 </Tasks>

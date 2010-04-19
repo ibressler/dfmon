@@ -187,6 +187,7 @@ class MyTreeWidget(QTreeWidget):
         s.__ioThread.stop()
         while not s.__ioThread.isFinished():
             s.__ioThread.wait()
+        # why do I still get: "QThread: Destroyed while thread is still running"
         QTreeWidget.closeEvent(s, event)
 
     def connectIoThread(s):
