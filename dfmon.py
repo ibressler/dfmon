@@ -1,4 +1,4 @@
-# hotplug.py
+# dfmon.py
 #
 # This file is part of dfmon.
 #
@@ -22,8 +22,8 @@ import sys
 import os
 import getopt
 
-from hotplugCmd import consoleMenu
-from hotplugQt import qtMenu
+from dfmonCmd import consoleMenu
+from dfmonQt import qtMenu
 
 class Usage(Exception):
     def __init__(self, msg):

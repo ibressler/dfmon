@@ -1,4 +1,4 @@
-# hotplugBackend.py
+# dfmonBackend.py
 #
 # This file is part of dfmon.
 #

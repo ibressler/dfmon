@@ -29,8 +29,8 @@ import time
 import cPickle
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-import hotplugBackend
-from hotplugBackend import formatSize, formatTimeDistance
+import dfmonBackend
+from dfmonBackend import formatSize, formatTimeDistance
 
 def tr(s): # translation shortcut
     return QCoreApplication.translate(None, s)
@@ -259,30 +259,30 @@ class MyTreeWidget(QTreeWidget):
         failureText = QString("Action '%1' failed: \n").arg(text)
         try:
             raise e
-        except hotplugBackend.DeviceInUseWarning, w:
+        except dfmonBackend.DeviceInUseWarning, w:
             QMessageBox.warning(s, tr("Device in Use"), 
                                 failureText+
                                 tr("The selected device is already in use."), 
                                 QMessageBox.Ok, QMessageBox.Ok)
-        except hotplugBackend.DeviceHasPartitionsWarning, w:
+        except dfmonBackend.DeviceHasPartitionsWarning, w:
             QMessageBox.warning(s, tr("Device contains Partitions"), 
                                 failureText+
                                 tr("The selected device contains several partitions.\n")+
                                 tr("Please select one directly."), 
                                 QMessageBox.Ok, QMessageBox.Ok)
-        except hotplugBackend.MyError, e:
+        except dfmonBackend.MyError, e:
             QMessageBox.critical(s, tr("An Error Occurred"), 
                                 failureText+
                                 str(e), 
                                 QMessageBox.Ok, QMessageBox.Ok)
-        except hotplugBackend.RemovalSuccessInfo, e:
+        except dfmonBackend.RemovalSuccessInfo, e:
             QMessageBox.information(s, tr("Success"), 
                     tr("It is safe to unplug the device now."), 
                     QMessageBox.Ok, QMessageBox.Ok)
 
     def refreshActionIfNeeded(s, checked = False):
-        if hotplugBackend.status.devStatusChanged() \
-        or hotplugBackend.status.mountStatusChanged():
+        if dfmonBackend.status.devStatusChanged() \
+        or dfmonBackend.status.mountStatusChanged():
             # wait a moment after change detected 
             # (let the system create device files, etc..)
             # sometimes, an exception occurs here (for 500ms delay):
@@ -306,7 +306,7 @@ class MyTreeWidget(QTreeWidget):
         QTreeWidget.reset(s)
         rootItem = s.invisibleRootItem()
         try:
-            for dev in hotplugBackend.status.getDevices():
+            for dev in dfmonBackend.status.getDevices():
 #                print "dev:", dev.scsiStr()
                 item = MyTreeWidgetItem(dev)
                 rootItem.addChild(item)

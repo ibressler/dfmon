@@ -1,4 +1,4 @@
-# hotplugQt.py
+# dfmonQt.py
 #
 # This file is part of dfmon.
 #

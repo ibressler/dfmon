@@ -1,4 +1,4 @@
-# hotplugCmd.py
+# dfmonCmd.py
 #
 # This file is part of dfmon.
 #
@@ -22,8 +22,8 @@
 """
 
 import time
-import hotplugBackend
-from hotplugBackend import MyError, DeviceInUseWarning, removeLineBreak, formatSize
+import dfmonBackend
+from dfmonBackend import MyError, DeviceInUseWarning, removeLineBreak, formatSize
 
 def inUseStr(isInUse):
     if isInUse:
@@ -81,7 +81,7 @@ def printBlkDev(blkDev):
     return printTable(formatBlkDev(blkDev, 1, "'> "))
 
 def getStatus():
-    devList = hotplugBackend.status.getDevices()
+    devList = dfmonBackend.status.getDevices()
     i = 0
     for dev in devList:
         out = "("+str(i) + ")\t"
