@@ -1,6 +1,8 @@
 ## dfmon
 
-A GUI for managing SCSI Devices in your Linux system with Truecrypt support.
+A GUI for managing SCSI Devices in your Linux system with Truecrypt support ([Screenshots] [2])
+
+[2]: http://wiki.github.com/ingob/dfmon/
 
 ### About
 
