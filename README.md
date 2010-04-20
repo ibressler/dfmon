@@ -1,10 +1,8 @@
-dfmon
-=====
+## dfmon
 
 A GUI for managing SCSI Devices in your Linux system with Truecrypt support.
 
-About
------
+### About
 
 Its creation was motivated by the need to hot-unplug (e)SATA hard disks from the
 running system. Recent Linux distributions support this for USB devices but
@@ -16,8 +14,7 @@ md or multipath setups - to keep it simple for the beginning.
 
 [1]: http://www.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/html/Online_Storage_Reconfiguration_Guide/removing_devices.html
 
-Invokation
-----------
+### Invokation
 
 The GUI is invoked like so:
 	$ python dfmon.py
@@ -26,8 +23,7 @@ There is a (very) rudimentary command line interface:
 	$ python dfmon.py -c
 which does only little more than displaying the system status.
 
-Requirements
-------------
+### Requirements
 
 * a Python installation
 * Qt
@@ -43,14 +39,12 @@ On Ubuntu, the necessary dependencies are resolved and installed by:
   (with more recent version of python and Qt)
 * Fedora 12 does not work properly because of missing gksu ...
 
-Personal Note
--------------
+### Personal Note
 
 This tiny project serves also for getting familiar with python itself. Hence,
 feel free to point me at problems, give suggestions or provide patches ;)
 
-Copying
--------
+### Copying
 
 Qt dependencies are restricted to dfmonQt. dfmonCmd as well as dfmonBackend
 are free of Qt. Therefore, it should be possible to write a different GUI, if
