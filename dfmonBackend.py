@@ -364,6 +364,7 @@ class BlockDevice(Device):
     __partitions = None # list of BlockDevices
     __holders = None    # list of BlockDevices
     __mountPoint = None
+    __timeStamp = None
 
     # getter methods
 
@@ -414,6 +415,7 @@ class BlockDevice(Device):
         if not os.path.exists(s.__ioFile):
             raise MyError("Could not find IO device path '"
                           +s.__ioFile+"'")
+        s.timeStamp()
         s.update()
         # final verification
         if not s.isValid():
@@ -489,11 +491,27 @@ class BlockDevice(Device):
                 s.__devNum > 0 and \
                 s.__size >= 0
 
-    def getSysfsPath(s):
-        if not s.isValid():
-            return ""
-        else:
-            return s.sysfs()
+    def timeStamp(s):
+        """Get the time this device was added to the system."""
+        if not s.__timeStamp:
+            if not os.path.exists(s.ioFile()):
+                s.__timeStamp = -1
+            else:
+                try:
+                    statinfo = os.stat(s.ioFile())
+                except Exception, e:
+                    s.__timeStamp = -1
+                else:
+                    mtime = statinfo[stat.ST_MTIME]
+                    atime = statinfo[stat.ST_ATIME]
+                    ctime = statinfo[stat.ST_CTIME]
+                    s.__timeStamp = mtime
+                    # get the oldest timestamp
+                    if atime < s.__timeStamp:
+                        s.__timeStamp = atime
+                    if ctime < s.__timeStamp:
+                        s.__timeStamp = ctime
+        return s.__timeStamp
 
     def getDeviceNumber(s):
         if not s.__devNum:
@@ -600,7 +618,6 @@ class ScsiDevice(Device):
     __driverName = None
     __vendor = None
     __model = None
-    __timeStamp = None # indicates when this device was added to the system
 
     # getter methods
 
@@ -677,7 +694,7 @@ class ScsiDevice(Device):
     def driver(s):
         if s.__driverName and len(s.__driverName) > 0:
             return s.__driverName
-        sysfsPath = s.__dev.getSysfsPath()
+        sysfsPath = s.__dev.sysfs()
         if not os.path.isdir(sysfsPath):
             return ""
         path = os.path.realpath(os.path.join(sysfsPath,"device"))
@@ -690,15 +707,8 @@ class ScsiDevice(Device):
         return s.__driverName
 
     def timeStamp(s):
-        """Get the time this device was added to the system. 
-        Is reset when sys path is repopulated by the kernel."""
-        if not s.__timeStamp:
-            mtime = int(os.path.getmtime(s.sysfs()))
-            atime = int(os.path.getatime(s.sysfs()))
-            s.__timeStamp = mtime
-            if atime < mtime:
-                s.__timeStamp = atime
-        return s.__timeStamp
+        """Get the time this device was added to the system."""
+        return s.blk().timeStamp()
 
     def isSupported(s):
         fn = os.path.join(s.sysfs(),"type")
