@@ -145,8 +145,11 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             statusTip += sizeStr
         elif s.dev().isScsi():
             statusTip += " " + s.dev().model()
-            secs = int(time.time()) - s.dev().timeStamp()
-            toolTip += tr(" (added %1 ago)").arg(formatTimeDistance(secs))
+            curtime = int(time.time())
+            ts = s.dev().timeStamp()
+            dist = curtime - ts
+            if dist > 0:
+                toolTip += tr(" (added %1 ago)").arg(formatTimeDistance(dist))
         # finally set the extended info
         s.setToolTip(0, toolTip)
         s.setStatusTip(0, statusTip)

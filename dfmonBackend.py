@@ -77,8 +77,8 @@ def formatSize(size):
         return "%.2f%s" % (short, n)
 
 def formatTimeDistance(t):
-    if not t or t < 0: 
-        return "-1"
+    if not t: return "-1"
+    if t < 0: t = abs(t)
     str = ""
     for v, n in zip(timeValues, timeNames):
         if len(str) > 0:
@@ -690,8 +690,14 @@ class ScsiDevice(Device):
         return s.__driverName
 
     def timeStamp(s):
+        """Get the time this device was added to the system. 
+        Is reset when sys path is repopulated by the kernel."""
         if not s.__timeStamp:
-            s.__timeStamp = int(os.path.getmtime(s.sysfs()))
+            mtime = int(os.path.getmtime(s.sysfs()))
+            atime = int(os.path.getatime(s.sysfs()))
+            s.__timeStamp = mtime
+            if atime < mtime:
+                s.__timeStamp = atime
         return s.__timeStamp
 
     def isSupported(s):
