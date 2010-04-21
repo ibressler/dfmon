@@ -68,12 +68,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.contentChanged)
         s.treeWidget.clear() # clears and rebuilds the tree
 
+    def closeEvent(s, event):
+        s.treeWidget.cleanup()
+        QMainWindow.closeEvent(s, event)
+
     def keyPressEvent(s, keyEvent):
         QMainWindow.keyPressEvent(s, keyEvent)
         # <esc> closes the window/application
         if keyEvent.key() == Qt.Key_Escape:
             s.close()
-            
+
     def contentChanged(s):
         s.treeWidget.adjustSize()
         s.treeWidget.updateGeometry()

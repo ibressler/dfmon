@@ -49,9 +49,7 @@ class MyAction(QAction):
                                             s.text(), s.methodObj)
 
 class IoThread(QThread):
-    """Runs device actions (system commands) in the background and polls 
-    for status changes."""
-    checkInterval = 500
+    """Runs device actions (system commands) in the background"""
 
     def __init__(s, parent = None):
         QThread.__init__(s, parent)
@@ -59,13 +57,7 @@ class IoThread(QThread):
     def run(s):
         s.actionHandler = ActionHandler()
         dfmonBackend.status.setSudoPwdFct(s.actionHandler.emitPwdSignal)
-        s.timer = QTimer()
-        s.timer.start(s.checkInterval)
         s.exec_()
-
-    def stop(s):
-        s.timer.stop()
-        s.quit()
 
 class ActionHandler(QObject):
     """Executes an action on a certain device (methodObj)."""
@@ -180,10 +172,12 @@ class MyTreeWidgetItem(QTreeWidgetItem):
 class MyTreeWidget(QTreeWidget):
     __visibleRowCount = None # overall count of rows
     __ioThread = None
+    __checkInterval = 500 # in milliseconds
 
     def __init__(s, parent=None):
         QTreeWidget.__init__(s, parent)
         s.__ioThread = IoThread(s)
+        s.__timer = QTimer()
         # connect some signals/slots
         QObject.connect(s, SIGNAL("customContextMenuRequested(const QPoint&)"), s.contextMenu)
         QObject.connect(s, SIGNAL("itemCollapsed(QTreeWidgetItem *)"), s.itemCollapsedOrExpanded)
@@ -192,12 +186,11 @@ class MyTreeWidget(QTreeWidget):
         s.__visibleRowCount = 0
         s.__ioThread.start()
 
-    def closeEvent(s, event):
-        s.__ioThread.stop()
-        while not s.__ioThread.isFinished():
+    def cleanup(s):
+        """Stops the ioThread."""
+        s.__ioThread.quit()
+        while s.__ioThread.isRunning() and not s.__ioThread.isFinished():
             s.__ioThread.wait()
-        # why do I still get: "QThread: Destroyed while thread is still running"
-        QTreeWidget.closeEvent(s, event)
 
     def connectIoThread(s):
         if s.__ioThread.isRunning():
@@ -209,8 +202,9 @@ class MyTreeWidget(QTreeWidget):
                             s.exceptionHandler, Qt.QueuedConnection)
             QObject.connect(s.__ioThread.actionHandler, SIGNAL("passwordDialog(PyQt_PyObject)"), 
                             s.passwordDialog, Qt.BlockingQueuedConnection)
-            QObject.connect(s.__ioThread.timer, SIGNAL("timeout(void)"), 
-                            s.refreshActionIfNeeded, Qt.QueuedConnection)
+            QObject.connect(s.__timer, SIGNAL("timeout(void)"), 
+                            s.refreshActionIfNeeded)
+            s.__timer.start(s.__checkInterval)
 
     def passwordDialog(s, resList):
         (input, ok) = QInputDialog.getText(s,
@@ -308,7 +302,7 @@ class MyTreeWidget(QTreeWidget):
             # (let the system create device files, etc..)
             # sometimes, an exception occurs here (for 500ms delay):
             # "Could not find IO device path" BlockDevice.__init__()
-            QTimer.singleShot(int(2*s.__ioThread.checkInterval), s.refreshAction)
+            QTimer.singleShot(int(2*s.__checkInterval), s.refreshAction)
 
     def refreshAction(s, checked = False):
         """Updates items as needed"""

@@ -163,7 +163,7 @@ class Status:
         s.mountStatusChanged()
         s.__swapStatus = SwapStatus()
         s.__devList = getScsiDevices(OsSysPath)
-    
+
     def devStatusChanged(s):
         devStatus = [os.path.basename(p) for p in glob.glob(OsSysPath+os.sep+"*")]
         if not s.__devStatus or len(s.__devStatus) != len(devStatus):
@@ -175,7 +175,7 @@ class Status:
                 s.__devStatus = devStatus
                 return True
         return False
-        
+
     def mountStatusChanged(s):
         mountStatus = MountStatus()
         if not s.__mountStatus or s.__mountStatus != mountStatus:
@@ -217,7 +217,7 @@ class Status:
             return True
         else:
             return False
-            
+
     def lastCmdStatusChanged(s):
         if s.__lastCmdStatus != s.__lastCmd.poll():
             s.__lastCmdStatus = s.__lastCmd.poll()
@@ -260,7 +260,7 @@ class Status:
 #        print "stderr:", "'"+stderr+"'"
 #        print "stdout:", "'"+"\n".join(stdout)+"'"
         return stdout
-        
+
     def setSudoPwdFct(s, function):
         """Sets the function to call when a sudo password is required.
         The function has to return a string."""
@@ -302,13 +302,13 @@ class MountStatus:
         """Returns the output of the 'mount' command, line by line"""
         status.callSysCommand(["mount"])
         s.__mountData = status.lastCmdOutput()
-        
+
     def __eq__(s, other):
         return "".join(s.__mountData) == "".join(other.data())
-        
+
     def __ne__(s, other):
         return not s.__eq__(other)
-        
+
     def data(s):
         return s.__mountData
 
