@@ -126,6 +126,82 @@ class DeviceInUseWarning(UserWarning): pass
 class DeviceHasPartitionsWarning(UserWarning): pass
 class RemovalSuccessInfo(Exception): pass
 
+class SysCmd:
+    __cmd = None # Popen object of the last command called
+    __cmdList = None # command string list of the last command
+    __cmdStatus = None # exit status of the recently invoked command
+    
+    def __init__(s, cmdList, sudoFlag = False):
+        """Calls a system command in a subprocess asynchronously.
+        Does not block. Raises an exception if the command was not found.
+        """
+        if not cmdList or len(cmdList) <= 0:
+            raise MyError("No command supplied!")
+        if sudoFlag:
+            cmdList[:0] = ["--"]
+            cmdList[:0] = status.sudoHandler()[1:] # omit command name
+        try:
+#            print "callSysCommand:", str(cmdList)
+            s.__cmd = subprocess.Popen(cmdList,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE,
+                               stdin=subprocess.PIPE)
+        except Exception, e:
+            raise MyError("Failed to run command: \n'"+
+                                    " ".join(cmdList)+"': \n"+str(e))
+        else:
+            s.__cmdList = cmdList
+            s.__cmdStatus = s.__cmd.poll()
+
+    def cmdFinished(s):
+        if not s.__cmd or s.__cmd.poll() != None:
+            return True
+        else:
+            return False
+
+    def cmdStatusChanged(s):
+        if s.__cmdStatus != s.__cmd.poll():
+            s.__cmdStatus = s.__cmd.poll()
+            return True
+        else: # nothing changed
+            return False
+
+    def output(s):
+        """Blocks until the last command finished.
+        On success, returns a list of output lines.
+        Raises an exception if the return code of the last command is not 0.
+        """
+        if not s.__cmd: 
+            return []
+        stdout = []
+        stderr = []
+        while not s.cmdFinished():
+            # catch and handle sudo pwd question
+            if s.__cmd.stderr and status.sudoHandler()[0] == "sudo":
+                err = s.__cmd.stderr.read(len(plainSudoQuestion)).strip()
+                if err == plainSudoQuestion:
+                    if status.sudoPwdFct:
+                        s.__cmd.stdin.write(status.sudoPwdFct()+"\n")
+                    else:
+                        s.__cmd.stdin.write("\n")
+                else:
+                    err += s.__cmd.stderr.readline()
+                stderr.append(err) # preserve possible error msgs
+            time.sleep(0.1) # wait some time for the command to finish
+        s.cmdStatusChanged()
+        returncode = s.__cmd.poll()
+        if s.__cmd.stderr:
+            stderr.extend(s.__cmd.stderr.readlines())
+        if returncode != None and returncode != 0:
+            raise CmdReturnCodeError(returncode, "\n".join(stderr))
+        # no error
+        if s.__cmd.stdout:
+            stdout.extend(s.__cmd.stdout.readlines())
+#        print "retcode:", returncode
+#        print "stderr:", "'"+stderr+"'"
+#        print "stdout:", "'"+"\n".join(stdout)+"'"
+        return stdout
+
 class Status:
     """Retrieves system status regarding Scsi, associated block devices and mountpoints."""
     __mountStatus = None
@@ -133,10 +209,8 @@ class Status:
     __devStatus = None # simple list of scsi device names available
     __devList = None # list of devices
     __sudo = None # sudo handler for the current system
-    __sudoPwdFct = None # method to retrieve password
-    __lastCmd = None # Popen object of the last command called
-    __lastCmdList = None # command string list of the last command
-    __lastCmdStatus = None # exit status of the recently invoked command
+    sudoPwdFct = None # The function to call when a sudo password is required. 
+                      # It has to return a string.
 
     def __init__(s):
         if sys.platform != "linux2":
@@ -144,19 +218,23 @@ class Status:
         for path in OsDevPath, OsSysPath:
             if not os.path.isdir(path):
                 raise MyError("Specified device path '"+path+"' does not exist !")
-        s.setSudoHandler()
 
-    def setSudoHandler(s):
-        for handler in knownSudoHandlers:
-            for path in os.environ["PATH"].split(":"):
-                handlerPath = os.path.join(path, handler[0])
-                if os.path.isfile(handlerPath):
-                    # keep the plain command name, add the full path
-                    s.__sudo = handler[1:] # arguments
-                    s.__sudo[:0] = [handler[0], handlerPath] # prepend command
-                    return
-        else:
+    def sudoHandler(s):
+        if not s.__sudo or len(s.__sudo) == 0:
+            s.__sudo = None
+            for handler in knownSudoHandlers:
+                for path in os.environ["PATH"].split(":"):
+                    handlerPath = os.path.join(path, handler[0])
+                    if os.path.isfile(handlerPath):
+                        # keep the plain command name, add the full path
+                        s.__sudo = handler[1:] # arguments
+                        s.__sudo[:0] = [handler[0], handlerPath] # prepend command
+                    if s.__sudo: break
+                if s.__sudo: break
+        if not s.__sudo or len(s.__sudo) == 0:
             raise MyError("No sudo handler found: "+str(knownSudoHandlers))
+        else:
+            return s.__sudo
 
     def update(s):
         s.devStatusChanged()
@@ -190,82 +268,6 @@ class Status:
     def swap(s): return s.__swapStatus
     def mount(s): return s.__mountStatus
 
-    def callSysCommand(s, cmdList, sudoFlag = False):
-        """Calls a system command in a subprocess asynchronously.
-        Does not block. Raises an exception if the command was not found.
-        """
-        if not cmdList or len(cmdList) <= 0:
-            return
-        if sudoFlag:
-            cmdList[:0] = ["--"]
-            cmdList[:0] = s.__sudo[1:] # omit command name
-        try:
-#            print "callSysCommand:", str(cmdList)
-            s.__lastCmd = subprocess.Popen(cmdList,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE,
-                               stdin=subprocess.PIPE)
-        except Exception, e:
-            raise MyError("Failed to run command: \n'"+
-                                    " ".join(cmdList)+"': \n"+str(e))
-        finally:
-            s.__lastCmdList = cmdList
-            s.__lastCmdStatus = s.__lastCmd.poll()
-
-    def lastCmdFinished(s):
-        if not s.__lastCmd or s.__lastCmd.poll() != None:
-            return True
-        else:
-            return False
-
-    def lastCmdStatusChanged(s):
-        if s.__lastCmdStatus != s.__lastCmd.poll():
-            s.__lastCmdStatus = s.__lastCmd.poll()
-            return True
-        else: # nothing changed
-            return False
-
-    def lastCmdOutput(s):
-        """Blocks until the last command finished.
-        On success, returns a list of output lines.
-        Raises an exception if the return code of the last command is not 0.
-        """
-        if not s.__lastCmd: 
-            return []
-        stdout = []
-        stderr = []
-        while not s.lastCmdFinished():
-            # catch and handle sudo pwd question
-            if s.__lastCmd.stderr and s.__sudo[0] == "sudo":
-                err = s.__lastCmd.stderr.read(len(plainSudoQuestion)).strip()
-                if err == plainSudoQuestion:
-                    if s.__sudoPwdFct:
-                        s.__lastCmd.stdin.write(s.__sudoPwdFct()+"\n")
-                    else:
-                        s.__lastCmd.stdin.write("\n")
-                else:
-                    err += s.__lastCmd.stderr.readline()
-                stderr.append(err) # preserve possible error msgs
-            time.sleep(0.1) # wait some time for the command to finish
-        s.lastCmdStatusChanged()
-        returncode = s.__lastCmd.poll()
-        if s.__lastCmd.stderr:
-            stderr.extend(s.__lastCmd.stderr.readlines())
-        if returncode != None and returncode != 0:
-            raise CmdReturnCodeError(returncode, "\n".join(stderr))
-        # no error
-        if s.__lastCmd.stdout:
-            stdout.extend(s.__lastCmd.stdout.readlines())
-#        print "retcode:", returncode
-#        print "stderr:", "'"+stderr+"'"
-#        print "stdout:", "'"+"\n".join(stdout)+"'"
-        return stdout
-
-    def setSudoPwdFct(s, function):
-        """Sets the function to call when a sudo password is required.
-        The function has to return a string."""
-        s.__sudoPwdFct = function
-
 class SwapStatus:
     """Summary of active swap partitions or devices"""
 
@@ -274,8 +276,8 @@ class SwapStatus:
 
     def __init__(s):
         """Returns the output of the 'swapon -s' command, line by line"""
-        status.callSysCommand(["swapon","-s"])
-        s.__swapData = status.lastCmdOutput()
+        cmd = SysCmd(["swapon","-s"])
+        s.__swapData = cmd.output()
         # get a list of swap devices
         s.__devices = []
         for line in s.__swapData:
@@ -300,8 +302,8 @@ class MountStatus:
 
     def __init__(s):
         """Returns the output of the 'mount' command, line by line"""
-        status.callSysCommand(["mount"])
-        s.__mountData = status.lastCmdOutput()
+        cmd = SysCmd(["mount"])
+        s.__mountData = cmd.output()
 
     def __eq__(s, other):
         return "".join(s.__mountData) == "".join(other.data())
@@ -535,8 +537,8 @@ class BlockDevice(Device):
                 raise DeviceInUseWarning()
             else:
                 try:
-                    status.callSysCommand(["truecrypt", "--mount", s.ioFile()])
-                    status.lastCmdOutput()
+                    cmd = SysCmd(["truecrypt", "--mount", s.ioFile()])
+                    cmd.output()
                 except MyError, e:
                     raise MyError("Failed to mount "+s.ioFile()+": "+str(e))
         elif len(s.__partitions) == 1:
@@ -556,12 +558,13 @@ class BlockDevice(Device):
         # function tests for truecrypt device files
         isTruecrypt = strInList("truecrypt")
         try:
+            cmd = None
             if isTruecrypt(s.__ioFile):
                 # --non-interactive
-                status.callSysCommand(["truecrypt", "-t", "--non-interactive", "-d", s.mountPoint()], True)
+                cmd = SysCmd(["truecrypt", "-t", "--non-interactive", "-d", s.mountPoint()], True)
             else:
-                status.callSysCommand(["umount", s.mountPoint()], True)
-            stdout = "".join(status.lastCmdOutput())
+                cmd = SysCmd(["umount", s.mountPoint()], True)
+            stdout = "".join(cmd.output())
             if len(stdout) > 0 and stdout != "passprompt":
                 raise MyError(stdout)
         except MyError, e:
@@ -578,8 +581,8 @@ class BlockDevice(Device):
         if s.inUse() or not os.path.exists(s.ioFile()):
             return
         try:
-            status.callSysCommand(["blockdev", "--flushbufs", s.ioFile()], True)
-            status.lastCmdOutput()
+            cmd = SysCmd(["blockdev", "--flushbufs", s.ioFile()], True)
+            cmd.output()
         except CmdReturnCodeError, e:
             raise MyError("CmdReturnCodeError: "+str(e.returnCode)+"\n"+e.stderr)
 
@@ -744,8 +747,8 @@ class ScsiDevice(Device):
             else:
                 s.__dev.flush()
                 try:
-                    status.callSysCommand(["su", "-c", "echo 1 > "+delPath], True)
-                    status.lastCmdOutput()
+                    cmd = SysCmd(["su", "-c", "echo 1 > "+delPath], True)
+                    cmd.output()
                 except CmdReturnCodeError, e:
                     raise MyError("CmdReturnCodeError: "+str(e.returnCode)+"\n"+e.stderr)
                 else:

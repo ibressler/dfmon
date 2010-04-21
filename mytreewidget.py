@@ -56,7 +56,7 @@ class IoThread(QThread):
 
     def run(s):
         s.actionHandler = ActionHandler()
-        dfmonBackend.status.setSudoPwdFct(s.actionHandler.emitPwdSignal)
+        dfmonBackend.status.sudoPwdFct = s.actionHandler.emitPwdSignal
         s.exec_()
 
 class ActionHandler(QObject):
