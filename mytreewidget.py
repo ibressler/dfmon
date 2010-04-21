@@ -58,6 +58,7 @@ class IoThread(QThread):
 
     def run(s):
         s.actionHandler = ActionHandler()
+        dfmonBackend.status.setSudoPwdFct(s.actionHandler.emitPwdSignal)
         s.timer = QTimer()
         s.timer.start(s.checkInterval)
         s.exec_()
@@ -79,6 +80,11 @@ class ActionHandler(QObject):
         finally:
             QObject.emit(s, SIGNAL("actionDone(void)"))
 #        print "doAction post"
+
+    def emitPwdSignal(s):
+        resList = [""]
+        QObject.emit(s, SIGNAL("passwordDialog(PyQt_PyObject)"), resList)
+        return str(resList[0])
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     """An item (row) in the GUI device tree. Has an associated device and 
@@ -201,8 +207,19 @@ class MyTreeWidget(QTreeWidget):
             QObject.connect(s.__ioThread.actionHandler, 
                             SIGNAL("exception(QString, PyQt_PyObject)"), 
                             s.exceptionHandler, Qt.QueuedConnection)
+            QObject.connect(s.__ioThread.actionHandler, SIGNAL("passwordDialog(PyQt_PyObject)"), 
+                            s.passwordDialog, Qt.BlockingQueuedConnection)
             QObject.connect(s.__ioThread.timer, SIGNAL("timeout(void)"), 
                             s.refreshActionIfNeeded, Qt.QueuedConnection)
+
+    def passwordDialog(s, resList):
+        (input, ok) = QInputDialog.getText(s,
+                tr("[sudo] Your password"), 
+                tr("Please enter your password to gain the required \npermissions to perform the selected action:"), 
+                QLineEdit.Password)
+        resList[0] = input
+        if not ok:
+            resList[0] = ""
 
     def sizeHint(s):
         """Show all entries so that no scrollbar is required"""
@@ -274,15 +291,15 @@ class MyTreeWidget(QTreeWidget):
                                 tr("The selected device contains several partitions.\n")+
                                 tr("Please select one directly."), 
                                 QMessageBox.Ok, QMessageBox.Ok)
-        except dfmonBackend.MyError, e:
-            QMessageBox.critical(s, tr("An Error Occurred"), 
-                                failureText+
-                                str(e), 
-                                QMessageBox.Ok, QMessageBox.Ok)
         except dfmonBackend.RemovalSuccessInfo, e:
             QMessageBox.information(s, tr("Success"), 
                     tr("It is safe to unplug the device now."), 
                     QMessageBox.Ok, QMessageBox.Ok)
+        except Exception, e:
+            QMessageBox.critical(s, tr("An Error Occurred"), 
+                                failureText+
+                                str(e), 
+                                QMessageBox.Ok, QMessageBox.Ok)
 
     def refreshActionIfNeeded(s, checked = False):
         if dfmonBackend.status.devStatusChanged() \

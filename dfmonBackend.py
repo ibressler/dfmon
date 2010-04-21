@@ -38,7 +38,8 @@ OsDevPath = "/dev/"
 OsSysPath = "/sys/class/scsi_device/"
 
 # graphical sudo handlers to test for, last one is the fallback solution
-knownSudoHandlers = ["kdesu", "gksu", "sudo"]
+plainSudoQuestion = "askforpwd"
+knownSudoHandlers = [["kdesu"], ["gksu"], ["sudo", "-p", plainSudoQuestion, "-S"]]
 
 # were does this come from, how to determine this value ?
 blockSize = long(512)
@@ -129,9 +130,10 @@ class Status:
     """Retrieves system status regarding Scsi, associated block devices and mountpoints."""
     __mountStatus = None
     __swapStatus = None
-    __devStatus = None
+    __devStatus = None # simple list of scsi device names available
     __devList = None # list of devices
-    __sudo = None
+    __sudo = None # sudo handler for the current system
+    __sudoPwdFct = None # method to retrieve password
     __lastCmd = None # Popen object of the last command called
     __lastCmdList = None # command string list of the last command
     __lastCmdStatus = None # exit status of the recently invoked command
@@ -147,9 +149,11 @@ class Status:
     def setSudoHandler(s):
         for handler in knownSudoHandlers:
             for path in os.environ["PATH"].split(":"):
-                handlerPath = os.path.join(path, handler)
+                handlerPath = os.path.join(path, handler[0])
                 if os.path.isfile(handlerPath):
-                    s.__sudo = handlerPath
+                    # keep the plain command name, add the full path
+                    s.__sudo = handler[1:] # arguments
+                    s.__sudo[:0] = [handler[0], handlerPath] # prepend command
                     return
         else:
             raise MyError("No sudo handler found: "+str(knownSudoHandlers))
@@ -186,25 +190,6 @@ class Status:
     def swap(s): return s.__swapStatus
     def mount(s): return s.__mountStatus
 
-# thread model proposal for Status class:
-# ---------------------------------------
-# Turn this Status object into a Thread where the run() method executes the
-# actions send by the GUI (mytreewidgetitem). This allows blocking operations 
-# while maintaining responsiveness of the GUI window
-#   Status.getDevices() will stay a regular class method and will deliver the list 
-# of block devices to treewidget.reset(). mytreewidgetitem will add a method object 
-# (BlockDevice) and a name to a Queue (does python this by reference or deepcopy ?)
-# The Status.run() picks an action from that Queue or blocks until there are actions
-# (other Status class methods should still be available, afaik)
-# Status.run() calls the received method object and raises an error if there was 
-# one. On success it emitts a signal for update (ideally, treewidget.reset())
-#   Problem: Over time, there is a stack of actions but the tree/devicelist changes
-# after every action. Both get out of sync (if this works at all). The BlockDevice
-# method objects for an action do not match the Status.getDevices() objects when 
-# the action is executed.
-
-# below, system command execution code
-
     def callSysCommand(s, cmdList, sudoFlag = False):
         """Calls a system command in a subprocess asynchronously.
         Does not block. Raises an exception if the command was not found.
@@ -212,13 +197,14 @@ class Status:
         if not cmdList or len(cmdList) <= 0:
             return
         if sudoFlag:
-#            cmdList = [s.__sudo, " ".join(cmdList)]
-            cmdList.insert(0, "--")
-            cmdList.insert(0, s.__sudo)
+            cmdList[:0] = ["--"]
+            cmdList[:0] = s.__sudo[1:] # omit command name
         try:
 #            print "callSysCommand:", str(cmdList)
-            s.__lastCmd = subprocess.Popen(cmdList, bufsize=-1, 
-                               stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            s.__lastCmd = subprocess.Popen(cmdList,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE,
+                               stdin=subprocess.PIPE)
         except Exception, e:
             raise MyError("Failed to run command: \n'"+
                                     " ".join(cmdList)+"': \n"+str(e))
@@ -246,23 +232,39 @@ class Status:
         """
         if not s.__lastCmd: 
             return []
+        stdout = []
+        stderr = []
         while not s.lastCmdFinished():
+            # catch and handle sudo pwd question
+            if s.__lastCmd.stderr and s.__sudo[0] == "sudo":
+                err = s.__lastCmd.stderr.read(len(plainSudoQuestion)).strip()
+                if err == plainSudoQuestion:
+                    if s.__sudoPwdFct:
+                        s.__lastCmd.stdin.write(s.__sudoPwdFct()+"\n")
+                    else:
+                        s.__lastCmd.stdin.write("\n")
+                else:
+                    err += s.__lastCmd.stderr.readline()
+                stderr.append(err) # preserve possible error msgs
             time.sleep(0.1) # wait some time for the command to finish
         s.lastCmdStatusChanged()
         returncode = s.__lastCmd.poll()
-        stderr = ""
-        if s.__lastCmd.stderr != None:
-            stderr = "\n".join(s.__lastCmd.stderr.readlines())
+        if s.__lastCmd.stderr:
+            stderr.extend(s.__lastCmd.stderr.readlines())
         if returncode != None and returncode != 0:
-            raise CmdReturnCodeError(returncode, stderr)
+            raise CmdReturnCodeError(returncode, "\n".join(stderr))
         # no error
-        stdout = []
-        if s.__lastCmd.stdout != None:
-            stdout = s.__lastCmd.stdout.readlines()
+        if s.__lastCmd.stdout:
+            stdout.extend(s.__lastCmd.stdout.readlines())
 #        print "retcode:", returncode
 #        print "stderr:", "'"+stderr+"'"
 #        print "stdout:", "'"+"\n".join(stdout)+"'"
         return stdout
+        
+    def setSudoPwdFct(s, function):
+        """Sets the function to call when a sudo password is required.
+        The function has to return a string."""
+        s.__sudoPwdFct = function
 
 class SwapStatus:
     """Summary of active swap partitions or devices"""
