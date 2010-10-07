@@ -115,12 +115,15 @@ class MyError(StandardError):
         return repr(s.msg)
 
 class CmdReturnCodeError(StandardError):
-    def __init__(s, returnCode = 0, stderr = ""):
+    def __init__(s, cmdList = [], returnCode = 0, stderr = ""):
         StandardError.__init__(s)
+        s.cmdList = cmdList
         s.returnCode = returnCode
         s.stderr = stderr
     def __str__(s):
-        return "CmdReturnCodeError: "+str(s.returnCode)
+        return "CmdReturnCodeError: "+str(s.returnCode)+"\n" \
+                +" ".join(s.cmdList)+"\n" \
+                +s.stderr
 
 class DeviceInUseWarning(UserWarning): pass
 class DeviceHasPartitionsWarning(UserWarning): pass
@@ -193,7 +196,7 @@ class SysCmd:
         if s.__cmd.stderr:
             stderr.extend(s.__cmd.stderr.readlines())
         if returncode != None and returncode != 0:
-            raise CmdReturnCodeError(returncode, "\n".join(stderr))
+            raise CmdReturnCodeError(s.__cmdList, returncode, "\n".join(stderr))
         # no error
         if s.__cmd.stdout:
             stdout.extend(s.__cmd.stdout.readlines())
@@ -581,10 +584,11 @@ class BlockDevice(Device):
         if s.inUse() or not os.path.exists(s.ioFile()):
             return
         try:
-            cmd = SysCmd(["blockdev", "--flushbufs", s.ioFile()], True)
+            cmd = SysCmd(["/sbin/blockdev", "--flushbufs", s.ioFile()], True)
             cmd.output()
         except CmdReturnCodeError, e:
-            raise MyError("CmdReturnCodeError: "+str(e.returnCode)+"\n"+e.stderr)
+            # what to do on fail, ignore ?
+            raise MyError(str(e))
 
 def getSize(sysfsPath):
     """Returns the overall numerical size of a block device.
@@ -750,7 +754,7 @@ class ScsiDevice(Device):
                     cmd = SysCmd(["su", "-c", "echo 1 > "+delPath], True)
                     cmd.output()
                 except CmdReturnCodeError, e:
-                    raise MyError("CmdReturnCodeError: "+str(e.returnCode)+"\n"+e.stderr)
+                    raise MyError(str(e))
                 else:
                     if not s.isValid():
                         raise RemovalSuccessInfo()
