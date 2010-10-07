@@ -1,27 +1,28 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow" >
-  <property name="windowTitle" >
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="windowTitle">
    <string>dfmon</string>
   </property>
-  <widget class="QWidget" name="centralwidget" >
-   <layout class="QVBoxLayout" name="verticalLayout" >
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <widget class="MyTreeWidget" name="treeWidget" >
-      <property name="sizePolicy" >
-       <sizepolicy vsizetype="Fixed" hsizetype="Fixed" >
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="contextMenuPolicy" >
+     <widget class="MyTreeWidget" name="treeWidget">
+      <property name="contextMenuPolicy">
        <enum>Qt::CustomContextMenu</enum>
       </property>
-      <property name="editTriggers" >
+      <property name="verticalScrollBarPolicy">
+       <enum>Qt::ScrollBarAsNeeded</enum>
+      </property>
+      <property name="horizontalScrollBarPolicy">
+       <enum>Qt::ScrollBarAlwaysOff</enum>
+      </property>
+      <property name="editTriggers">
        <set>QAbstractItemView::NoEditTriggers</set>
       </property>
       <column>
-       <property name="text" >
+       <property name="text">
         <string>1</string>
        </property>
       </column>
@@ -29,8 +30,7 @@
     </item>
    </layout>
   </widget>
-  <widget class="QMenuBar" name="menubar" />
-  <widget class="QStatusBar" name="statusbar" />
+  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <customwidgets>
   <customwidget>

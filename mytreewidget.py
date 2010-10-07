@@ -223,14 +223,16 @@ class MyTreeWidget(QTreeWidget):
         if widthHint < s.header().sizeHint().width():
             widthHint = s.header().sizeHint().width() + 2*2
         # consider the scrollbar width
-        if s.verticalScrollBar().isVisible():
-            widthHint += s.verticalScrollBar().width()
+#        if s.verticalScrollBar().isVisible(): # never visible, no reliable
+        widthHint += s.verticalScrollBar().width()
         # update the current/original size hint
         hint = QTreeWidget.sizeHint(s)
         hint.setWidth(widthHint)
         # set height according to # rows
         h = s.indexRowSizeHint(s.indexFromItem(s.invisibleRootItem().child(0))) # one row
-        heightHint = s.__visibleRowCount * h + s.header().height() + 2*2 # magic margin 2+2
+        heightHint = (s.__visibleRowCount+1) * h \
+                    + s.header().height() \
+                    + 2*2 # magic margin 2+2
         # stay within desktop area
         desktop = qApp.desktop()
         maxHeight = desktop.availableGeometry(desktop.screenNumber(s)).height()

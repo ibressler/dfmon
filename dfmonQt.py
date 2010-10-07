@@ -79,11 +79,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             s.close()
 
     def contentChanged(s):
-        s.treeWidget.adjustSize()
+#        s.treeWidget.adjustSize()
         s.treeWidget.updateGeometry()
+#        s.resize(200, 256)
         sh = s.sizeHint()
-        s.setMinimumSize(sh)
-        s.setMaximumSize(sh)
+        s.setFixedWidth(sh.width())
 
 # end MainWindow
 

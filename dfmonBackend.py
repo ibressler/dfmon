@@ -276,7 +276,7 @@ class SwapStatus:
 
     def __init__(s):
         """Returns the output of the 'swapon -s' command, line by line"""
-        cmd = SysCmd(["swapon","-s"])
+        cmd = SysCmd(["/sbin/swapon","-s"])
         s.__swapData = cmd.output()
         # get a list of swap devices
         s.__devices = []
