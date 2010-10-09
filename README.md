@@ -1,15 +1,16 @@
 ## dfmon
 
-A GUI for managing SCSI Devices in your Linux system with Truecrypt support ([Screenshots] [2])
+A GUI for managing hotplug storage devices (SATA, USB, SCSI, ...) in your 
+Linux system with Truecrypt support ([Screenshots] [2])
 
 [2]: http://wiki.github.com/ingob/dfmon/
 
 ### About
 
 Its creation was motivated by the need to hot-unplug (e)SATA hard disks from the
-running system. Recent Linux distributions support this for USB devices but
-not for SATA devices directly, afaik (the author). Please tell me, if I'm
-wrong, or if this is not supported by the kernel at all.
+running system. Recent Linux distributions support this (via a GUI) for USB 
+devices but not for SATA devices directly, afaik (the author). Please tell me,
+if I'm wrong, or if this is not supported by the kernel at all.
 
 Device removal preparation follows [a guide from Redhat] [1]. Except for LVM,
 md or multipath setups - to keep it simple for the beginning.
