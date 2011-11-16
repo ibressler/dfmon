@@ -39,7 +39,7 @@ OsSysPath = "/sys/class/scsi_device/"
 
 # graphical sudo handlers to test for, last one is the fallback solution
 plainSudoQuestion = "askforpwd"
-knownSudoHandlers = [["kdesu"], ["gksu"], ["sudo", "-p", plainSudoQuestion, "-S"]]
+knownSudoHandlers = [["kdesu"], ["gksudo"], ["sudo", "-p", plainSudoQuestion, "-S"]]
 
 # were does this come from, how to determine this value ?
 blockSize = long(512)
@@ -144,7 +144,7 @@ class SysCmd:
             cmdList[:0] = ["--"]
             cmdList[:0] = status.sudoHandler()[1:] # omit command name
         try:
-#            print "callSysCommand:", str(cmdList)
+#            print >>sys.stderr, "callSysCommand:", str(cmdList)
             s.__cmd = subprocess.Popen(cmdList,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
@@ -196,13 +196,14 @@ class SysCmd:
         if s.__cmd.stderr:
             stderr.extend(s.__cmd.stderr.readlines())
         if returncode != None and returncode != 0:
+#           print "s.__cmd", s.__cmdList
+#           print "retcode:", returncode
+#           print "stderr:", "'"+"\n".join(stderr)+"'"
+#           print "stdout:", "'"+"\n".join(stdout)+"'"
             raise CmdReturnCodeError(s.__cmdList, returncode, "\n".join(stderr))
         # no error
         if s.__cmd.stdout:
             stdout.extend(s.__cmd.stdout.readlines())
-#        print "retcode:", returncode
-#        print "stderr:", "'"+stderr+"'"
-#        print "stdout:", "'"+"\n".join(stdout)+"'"
         return stdout
 
 class Status:
@@ -531,7 +532,7 @@ class BlockDevice(Device):
             s.__devNum = os.makedev(int(major), int(minor))
         return s.__devNum
 
-    def mount(s):
+    def mount(s, password = None):
         """Mount block device"""
         # no partitions
         if len(s.__partitions) == 0:
@@ -540,7 +541,13 @@ class BlockDevice(Device):
                 raise DeviceInUseWarning()
             else:
                 try:
-                    cmd = SysCmd(["truecrypt", "--mount", s.ioFile()])
+                    if password is not None:
+                        cmd = SysCmd(["truecrypt", "-t", "--non-interactive",
+                                      "-p", password, "--mount", s.ioFile()],
+                                     sudoFlag = True)
+                    else:
+                        cmd = SysCmd(["truecrypt", "--mount",
+                                      s.ioFile()], sudoFlag = True)
                     cmd.output()
                 except MyError, e:
                     raise MyError("Failed to mount "+s.ioFile()+": "+str(e))

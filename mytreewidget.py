@@ -243,6 +243,8 @@ class MyTreeWidget(QTreeWidget):
 
     def contextMenu(s, pos):
         item = s.itemAt(pos)
+        if item is None:
+            return
         menu = QMenu(s)
         if item.dev().isScsi():
             removeAction = MyAction(item.dev().remove, tr("umount all && remove"), menu)
