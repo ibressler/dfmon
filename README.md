@@ -7,11 +7,17 @@ Linux system with Truecrypt support ([Screenshots] [2])
 
 ### Screenshots
 
+#### Successful Device Removal
+
 ![Successful Device Removal](https://github.com/ibressler/dfmon/raw/master/screenshots/scr01.png "Successful Device Removal")
 
-![Available actions for a device](https://github.com/ibressler/dfmon/raw/master/screenshots/scr02.png "Available actions for a device")
+#### Available Actions for a Device
 
-![Status tooltip for each block device](https://github.com/ibressler/dfmon/raw/master/screenshots/scr03.png "Status tooltip for each block device")
+![Available Actions for a Device](https://github.com/ibressler/dfmon/raw/master/screenshots/scr02.png "Available Actions for a Device")
+
+#### Status Tooltip for Each Block Device
+
+![Status Tooltip for Each Block Device](https://github.com/ibressler/dfmon/raw/master/screenshots/scr03.png "Status Tooltip for Each Block Device")
 
 ### About
 
