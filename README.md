@@ -5,6 +5,14 @@ Linux system with Truecrypt support ([Screenshots] [2])
 
 [2]: http://wiki.github.com/ingob/dfmon/
 
+### Screenshots
+
+![Successful Device Removal](https://github.com/ibressler/dfmon/raw/master/screenshots/scr01.png "Successful Device Removal")
+
+![Available actions for a device](https://github.com/ibressler/dfmon/raw/master/screenshots/scr02.png "Available actions for a device")
+
+![Status tooltip for each block device](https://github.com/ibressler/dfmon/raw/master/screenshots/scr03.png "Status tooltip for each block device")
+
 ### About
 
 Its creation was motivated by the need to hot-unplug (e)SATA hard disks from the
@@ -20,11 +28,8 @@ md or multipath setups - to keep it simple for the beginning.
 ### Invokation
 
 The GUI is invoked like so:
-	$ python dfmon.py
 
-There is a (very) rudimentary command line interface:
-	$ python dfmon.py -c
-which does only little more than displaying the system status.
+	$ python dfmon.py
 
 ### Requirements
 
