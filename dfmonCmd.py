@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # dfmonCmd.py
 #
 # This file is part of dfmon.

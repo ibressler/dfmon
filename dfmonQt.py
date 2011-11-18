@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # dfmonQt.py
 #
 # This file is part of dfmon.
