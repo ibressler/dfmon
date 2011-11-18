@@ -28,19 +28,27 @@ which does only little more than displaying the system status.
 
 ### Requirements
 
-* a Python installation
+* Python
 * Qt
 * PyQt
-* a graphical sudo replacement (kdesu, gksu); 
-  otherwise, you should call it with sudo 
 
-On Ubuntu, the necessary dependencies are resolved and installed by:
+Tested on Ubuntu 11, OpenSuse 12, Fedora 16
+
+#### Ubuntu
+
 	$ sudo apt-get install python-qt4
 
-* Developed and heavily tested on Kubuntu 8.04 (python 2.5, PyQt 4.3) and
-* roughly tested on Ubuntu 9.10, OpenSuse 11.
-  (with more recent version of python and Qt)
-* Fedora 12 does not work properly because of missing gksu ...
+#### Fedora
+
+	$ su
+	# yum install PyQt4
+
+#### OpenSuse
+
+If you use the KDE Desktop, PyQt is already installed, but it won't hurt:
+
+	$ su
+	# zypper install python-qt4
 
 ### Personal Note
 
@@ -54,7 +62,7 @@ are free of Qt. Therefore, it should be possible to write a different GUI, if
 someone dislikes Qt. Additionally, the backend could be licensed 'more free', if
 there is interest.
 
-Copyright (c) 2010 by Ingo Bressler
+Copyright (c) 2011 by Ingo Breßler
 
 This is Free Software distributed under the terms of the GPL license. See the COPYING file for license rights and limitations.
 
