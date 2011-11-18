@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # dfmonBackend.py
 #
 # This file is part of dfmon.
@@ -39,7 +40,7 @@ OsSysPath = "/sys/class/scsi_device/"
 
 # graphical sudo handlers to test for, last one is the fallback solution
 plainSudoQuestion = "askforpwd"
-knownSudoHandlers = [["kdesu"], ["gksudo"], ["sudo", "-p", plainSudoQuestion, "-S"]]
+knownSudoHandlers = [["kdesu", "-c"], ["gksudo"], ["sudo", "-p", plainSudoQuestion, "-S"], ["su", "-c"]]
 
 # were does this come from, how to determine this value ?
 blockSize = long(512)
@@ -141,10 +142,13 @@ class SysCmd:
         if not cmdList or len(cmdList) <= 0:
             raise MyError("No command supplied!")
         if sudoFlag:
-            cmdList[:0] = ["--"]
-            cmdList[:0] = status.sudoHandler()[1:] # omit command name
+            newcmd = status.sudoHandler()[1:] # omit command name
+            if "-c" in newcmd[-1]: # 'su -c' needs cmd as single string
+                newcmd.append(" ".join(cmdList))
+            else:
+                newcmd.extend(cmdList)
+            cmdList = newcmd
         try:
-#            print >>sys.stderr, "callSysCommand:", str(cmdList)
             s.__cmd = subprocess.Popen(cmdList,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
@@ -196,10 +200,6 @@ class SysCmd:
         if s.__cmd.stderr:
             stderr.extend(s.__cmd.stderr.readlines())
         if returncode != None and returncode != 0:
-#           print "s.__cmd", s.__cmdList
-#           print "retcode:", returncode
-#           print "stderr:", "'"+"\n".join(stderr)+"'"
-#           print "stdout:", "'"+"\n".join(stdout)+"'"
             raise CmdReturnCodeError(s.__cmdList, returncode, "\n".join(stderr))
         # no error
         if s.__cmd.stdout:
@@ -229,16 +229,33 @@ class Status:
             for handler in knownSudoHandlers:
                 for path in os.environ["PATH"].split(":"):
                     handlerPath = os.path.join(path, handler[0])
-                    if os.path.isfile(handlerPath):
-                        # keep the plain command name, add the full path
-                        s.__sudo = handler[1:] # arguments
-                        s.__sudo[:0] = [handler[0], handlerPath] # prepend command
-                    if s.__sudo: break
-                if s.__sudo: break
+                    if not os.path.isfile(handlerPath):
+                        continue
+                    # keep the plain command name, add the full path
+                    s.__sudo = handler[1:] # arguments
+                    s.__sudo[:0] = [handler[0], handlerPath] # prepend command
+                    if s._sudoHandlerWorks():
+                        break
+                if s._sudoHandlerWorks():
+                    break
         if not s.__sudo or len(s.__sudo) == 0:
             raise MyError("No sudo handler found: "+str(knownSudoHandlers))
         else:
             return s.__sudo
+
+    def _sudoHandlerWorks(s):
+        if s.__sudo is None:
+            return False
+        try:
+            text = "sudotest"
+            cmd = SysCmd(["echo -n {0}".format(text)], sudoFlag=True)
+            if cmd.output()[0] != text:
+                raise Exception
+        except Exception, e:
+            s.__sudo = None
+            return False
+        else:
+            return True
 
     def update(s):
         s.devStatusChanged()
@@ -741,25 +758,30 @@ class ScsiDevice(Device):
             return False
 
     def isValid(s):
-        return len(s.__scsiAdr) == 4 and \
-                s.sysfs() and os.path.isdir(s.sysfs()) and \
-                s.__dev.isValid()
+        return (len(s.__scsiAdr) == 4 and
+                s.sysfs() and os.path.isdir(s.sysfs()) and
+                s.__dev.isValid())
         # test for every blk device being valid
 
     def remove(s):
         if s.inUse():
             s.umount()
-        if s.inUse(): # still in use
+        ts = time.time()
+        # wait a sec
+        while s.inUse() and time.time() < ts+1.5:
+            time.sleep(0.1)
+        # still in use
+        if s.inUse():
             raise MyError("Could not umount this device!")
         else:
+            # not in use anymore, remove the device
             delPath = os.path.join(s.sysfs(), "delete")
             if not os.path.isfile(delPath):
                 raise MyError("Could not find '"+delPath+"'")
             else:
                 s.__dev.flush()
                 try:
-                    cmd = SysCmd(["su", "-c", "echo 1 > "+delPath], True)
-                    cmd.output()
+                    cmd = SysCmd(["sh -c 'echo 1 > "+delPath+"'"], True)
                 except CmdReturnCodeError, e:
                     raise MyError(str(e))
                 else:
