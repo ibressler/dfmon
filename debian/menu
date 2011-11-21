@@ -1,2 +1,2 @@
-?package(dfmon):needs="X11|text|vc|wm" section="System/Monitoring"\
+?package(dfmon):needs="X11" section="Applications/System/Hardware"\
   title="dfmon" command="dfmon"

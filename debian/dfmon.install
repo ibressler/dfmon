@@ -1,0 +1,2 @@
+dfmon            usr/bin/
+*.py             usr/share/pyshared/dfmon/

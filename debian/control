@@ -1,5 +1,5 @@
 Source: dfmon
-Section: misc
+Section: utils
 Priority: optional
 Maintainer: Ingo Breßler <dfmon@ingobressler.net>
 Build-Depends: debhelper (>= 8.0.0)
@@ -8,6 +8,10 @@ Homepage: https://github.com/ibressler/dfmon/
 
 Package: dfmon
 Architecture: all
-Depends: ${misc:Depends}, python-qt4 (>= 4.7.4)
-Description: A GUI for managing hotplug storage devices with Truecrypt support.
- dfmon is a program that hot-unplugs (e)SATA hard disks from the running system. At the time of creation of this tool, recent linux distributions did support this via a GUI for USB devices but not for SATA devices directly. This is required for swapping external (e)SATA hard disks without reboot and/or re-logon.
+Depends: ${misc:Depends}, ${python:Depends}, python-qt4 (>= 4.7.4)
+Description: GUI for hot-plug of storage devices (e.g. eSATA, USB).
+ dfmon is a program that hot-unplugs (e)SATA hard disks from the running
+ system. At the time of creation of this tool, recent linux distributions
+ did support this via a GUI for USB devices but not for SATA devices directly.
+ This is required for swapping external (e)SATA hard disks without reboot
+ and/or re-logon.
