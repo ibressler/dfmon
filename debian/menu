@@ -1,0 +1,2 @@
+?package(dfmon):needs="X11|text|vc|wm" section="System/Monitoring"\
+  title="dfmon" command="dfmon"

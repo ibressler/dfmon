@@ -1,0 +1,13 @@
+Source: dfmon
+Section: misc
+Priority: optional
+Maintainer: Ingo Breßler <dfmon@ingobressler.net>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.2
+Homepage: https://github.com/ibressler/dfmon/
+
+Package: dfmon
+Architecture: all
+Depends: ${misc:Depends}
+Description: A GUI for managing hotplug storage devices with Truecrypt support.
+ dfmon is a program that hot-unplugs (e)SATA hard disks from the running system. At the time of creation of this tool, recent linux distributions did support this via a GUI for USB devices but not for SATA devices directly. This is required for swapping external (e)SATA hard disks without reboot and/or re-logon.

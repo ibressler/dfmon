@@ -1,0 +1,78 @@
+'\" t
+.\"     Title: DFMON
+.\"    Author: Ingo Bre\(ssler <dfmon@ingobressler.net>
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 11/21/2011
+.\"    Manual: dfmon User Manual
+.\"    Source: dfmon
+.\"  Language: English
+.\"
+.TH "DFMON" "1" "11/21/2011" "dfmon" "dfmon User Manual"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+dfmon \- A GUI for managing hotplug storage devices (SATA, USB, SCSI, \&.\&.\&.) in your Linux system with Truecrypt support\&.
+.SH "SYNOPSIS"
+.HP \w'\fBdfmon\fR\ 'u
+\fBdfmon\fR [{\fB\-h\fR\ |\ \fB\-\-help\fR} | {\fB\-c\fR\ |\ \fB\-\-console\fR}]
+.SH "DESCRIPTION"
+.PP
+This manual page documents briefly the
+\fBdfmon\fR
+program\&.
+.PP
+\fBdfmon\fRis a program that hot\-unplugs (e)SATA hard disks from the running system\&. At the time of creation of this tool, recent linux distributions did support this via a GUI for USB devices but not for SATA devices directly\&. This is required for swapping external (e)SATA hard disks without reboot and/or re\-logon\&.
+.SH "OPTIONS"
+.PP
+The program follows the usual GNU command line syntax, with long options starting with two dashes (`\-\*(Aq)\&. A summary of options is included below\&.
+.PP
+\fB\-h\fR, \fB\-\-help\fR
+.RS 4
+Show summary of options\&.
+.RE
+.PP
+\fB\-c\fR, \fB\-\-console\fR
+.RS 4
+Start the command line interface of the program\&.
+.RE
+.SH "BUGS"
+.PP
+The upstreams
+BTS
+can be found at
+\m[blue]\fB\%https://github.com/ibressler/dfmon/issues\fR\m[]\&.
+.SH "AUTHOR"
+.PP
+\fBIngo Bre\(ssler\fR <\&dfmon@ingobressler\&.net\&>
+.RS 4
+Wrote this manpage for the Debian system\&.
+.RE
+.SH "COPYRIGHT"
+.br
+Copyright \(co 2010-2011 Ingo Bre\(ssler
+.br
+.PP
+This manual page was written for the Debian system (and may be used by others)\&.
+.PP
+Permission is granted to copy, distribute and/or modify this document under the terms of the GNU General Public License, Version 2 or (at your option) any later version published by the Free Software Foundation\&.
+.PP
+On Debian systems, the complete text of the GNU General Public License can be found in
+/usr/share/common\-licenses/GPL\&.
+.sp
