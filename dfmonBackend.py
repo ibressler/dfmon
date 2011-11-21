@@ -134,20 +134,23 @@ class SysCmd:
     __cmd = None # Popen object of the last command called
     __cmdList = None # command string list of the last command
     __cmdStatus = None # exit status of the recently invoked command
+    _sudo = None
     
-    def __init__(s, cmdList, sudoFlag = False):
+    def __init__(s, cmdList, sudo = False):
         """Calls a system command in a subprocess asynchronously.
         Does not block. Raises an exception if the command was not found.
         """
+        s._sudo = False
         if not cmdList or len(cmdList) <= 0:
             raise MyError("No command supplied!")
-        if sudoFlag:
+        if sudo:
             newcmd = status.sudoHandler()[1:] # omit command name
             if "-c" in newcmd[-1]: # 'su -c' needs cmd as single string
                 newcmd.append(" ".join(cmdList))
             else:
                 newcmd.extend(cmdList)
             cmdList = newcmd
+            s._sudo = True
         try:
             s.__cmd = subprocess.Popen(cmdList,
                                stdout=subprocess.PIPE,
@@ -183,10 +186,12 @@ class SysCmd:
         stdout = []
         stderr = []
         while not s.cmdFinished():
-            # catch and handle sudo pwd question
-            if s.__cmd.stderr and status.sudoHandler()[0] == "sudo":
+            if s.__cmd.stderr:
                 err = s.__cmd.stderr.read(len(plainSudoQuestion)).strip()
-                if err == plainSudoQuestion:
+                if (s._sudo and
+                    status.sudoHandler()[0] == "sudo" and
+                    err == plainSudoQuestion):
+                    # catch and handle sudo pwd question
                     if status.sudoPwdFct:
                         s.__cmd.stdin.write(status.sudoPwdFct()+"\n")
                     else:
@@ -248,7 +253,7 @@ class Status:
             return False
         try:
             text = "sudotest"
-            cmd = SysCmd(["echo -n {0}".format(text)], sudoFlag=True)
+            cmd = SysCmd(["echo -n {0}".format(text)], sudo=True)
             if cmd.output()[0] != text:
                 raise Exception
         except Exception, e:
@@ -561,10 +566,10 @@ class BlockDevice(Device):
                     if password is not None:
                         cmd = SysCmd(["truecrypt", "-t", "--non-interactive",
                                       "-p", password, "--mount", s.ioFile()],
-                                     sudoFlag = True)
+                                     sudo = True)
                     else:
                         cmd = SysCmd(["truecrypt", "--mount",
-                                      s.ioFile()], sudoFlag = True)
+                                      s.ioFile()], sudo = True)
                     cmd.output()
                 except MyError, e:
                     raise MyError("Failed to mount "+s.ioFile()+": "+str(e))
