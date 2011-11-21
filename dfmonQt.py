@@ -62,7 +62,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         headerItem.setToolTip(0, QString("%1 %2").arg(s.windowTitle(), "0.1")
                             +QString("\n%1").arg(u"Copyright (C) 2010  Ingo Bressler")
                             +QString("\n%1\n%2\n%3").arg("This program comes with ABSOLUTELY", "NO WARRANTY. This is free software, use", "and redistribute it under the terms of the GPLv3.")
-                            +QString("\n%1\n%2").arg(tr("For information, feedback and contributions, please visit:"), "http://github.com/ingob/dfmon"))
+                            +QString("\n%1\n%2").arg(tr("For information, feedback and contributions, please visit:"), "http://github.com/ibressler/dfmon"))
         s.treeWidget.setMouseTracking(True)
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.updateGeometry)
         QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.centralwidget.updateGeometry)

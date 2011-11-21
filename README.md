@@ -1,9 +1,7 @@
 ## dfmon
 
 A GUI for managing hotplug storage devices (SATA, USB, SCSI, ...) in your 
-Linux system with Truecrypt support ([Screenshots] [2])
-
-[2]: http://wiki.github.com/ingob/dfmon/
+Linux system with Truecrypt support.
 
 ### Screenshots
 
