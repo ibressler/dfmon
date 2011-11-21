@@ -27,7 +27,7 @@ if I'm wrong, or if this is not supported by the kernel at all.
 Device removal preparation follows [a guide from Redhat] [1]. Except for LVM,
 md or multipath setups - to keep it simple for the beginning.
 
-[1]: http://www.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/html/Online_Storage_Reconfiguration_Guide/removing_devices.html
+[1]: http://docs.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/5/html/Online_Storage_Reconfiguration_Guide/removing_devices.html
 
 ### Invokation
 
