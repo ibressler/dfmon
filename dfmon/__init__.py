@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# dfmon.py
+# __init__.py
 #
 # This file is part of dfmon.
 #
@@ -64,5 +64,3 @@ def main(argv=None):
     else:
         return qtMenu(argv)
 
-if __name__ == "__main__":
-    sys.exit(main())

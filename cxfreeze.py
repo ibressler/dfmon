@@ -24,7 +24,7 @@ setup(
                 'include_files': includefiles,
                 'build_exe': PATHNAME}
               }, 
-    executables = [Executable(script='dfmon.py',
+    executables = [Executable(script='bin/dfmon',
                               targetName=NAME)]
 )
 

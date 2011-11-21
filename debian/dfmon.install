@@ -1,2 +1,2 @@
-dfmon            usr/bin/
-*.py             usr/share/pyshared/dfmon/
+bin/dfmon            usr/bin/
+dfmon/*.py           usr/share/pyshared/dfmon/

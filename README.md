@@ -31,9 +31,14 @@ md or multipath setups - to keep it simple for the beginning.
 
 ### Invokation
 
-The GUI is invoked like so:
+Clone the git repository somewhere on your disk:
 
-	$ python dfmon.py
+	$ git clone https://github.com/ibressler/dfmon.git
+
+The GUI is invoked like so (dots are important!):
+
+	$ cd dfmon
+	$ PYTHONPATH=. ./bin/dfmon
 
 ### Requirements
 
