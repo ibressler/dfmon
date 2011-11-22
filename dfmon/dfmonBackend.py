@@ -130,9 +130,9 @@ class DeviceHasPartitionsWarning(UserWarning): pass
 class RemovalSuccessInfo(Exception): pass
 
 class SysCmd:
-    __cmd = None # Popen object of the last command called
-    __cmdList = None # command string list of the last command
-    __cmdStatus = None # exit status of the recently invoked command
+    _cmd = None # Popen object of the last command called
+    _cmdList = None # command string list of the last command
+    _cmdStatus = None # exit status of the recently invoked command
     _sudo = None
     
     def __init__(self, cmdList, sudo = False):
@@ -151,7 +151,7 @@ class SysCmd:
             cmdList = newcmd
             self._sudo = True
         try:
-            self.__cmd = subprocess.Popen(cmdList,
+            self._cmd = subprocess.Popen(cmdList,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
                                stdin=subprocess.PIPE)
@@ -159,18 +159,18 @@ class SysCmd:
             raise MyError("Failed to run command: \n'"+
                                     " ".join(cmdList)+"': \n"+str(e))
         else:
-            self.__cmdList = cmdList
-            self.__cmdStatus = self.__cmd.poll()
+            self._cmdList = cmdList
+            self._cmdStatus = self._cmd.poll()
 
     def cmdFinished(self):
-        if not self.__cmd or self.__cmd.poll() != None:
+        if not self._cmd or self._cmd.poll() != None:
             return True
         else:
             return False
 
     def cmdStatusChanged(self):
-        if self.__cmdStatus != self.__cmd.poll():
-            self.__cmdStatus = self.__cmd.poll()
+        if self._cmdStatus != self._cmd.poll():
+            self._cmdStatus = self._cmd.poll()
             return True
         else: # nothing changed
             return False
@@ -180,43 +180,43 @@ class SysCmd:
         On success, returns a list of output lines.
         Raises an exception if the return code of the last command is not 0.
         """
-        if not self.__cmd: 
+        if not self._cmd: 
             return []
         stdout = []
         stderr = []
         while not self.cmdFinished():
-            if self.__cmd.stderr:
-                err = self.__cmd.stderr.read(len(plainSudoQuestion)).strip()
+            if self._cmd.stderr:
+                err = self._cmd.stderr.read(len(plainSudoQuestion)).strip()
                 if (self._sudo and
                     status.sudoHandler()[0] == "sudo" and
                     err == plainSudoQuestion):
                     # catch and handle sudo pwd question
                     if status.sudoPwdFct:
-                        self.__cmd.stdin.write(status.sudoPwdFct()+"\n")
+                        self._cmd.stdin.write(status.sudoPwdFct()+"\n")
                     else:
-                        self.__cmd.stdin.write("\n")
+                        self._cmd.stdin.write("\n")
                 else:
-                    err += self.__cmd.stderr.readline()
+                    err += self._cmd.stderr.readline()
                 stderr.append(err) # preserve possible error msgs
             time.sleep(0.1) # wait some time for the command to finish
         self.cmdStatusChanged()
-        returncode = self.__cmd.poll()
-        if self.__cmd.stderr:
-            stderr.extend(self.__cmd.stderr.readlines())
+        returncode = self._cmd.poll()
+        if self._cmd.stderr:
+            stderr.extend(self._cmd.stderr.readlines())
         if returncode != None and returncode != 0:
-            raise CmdReturnCodeError(self.__cmdList, returncode, "\n".join(stderr))
+            raise CmdReturnCodeError(self._cmdList, returncode, "\n".join(stderr))
         # no error
-        if self.__cmd.stdout:
-            stdout.extend(self.__cmd.stdout.readlines())
+        if self._cmd.stdout:
+            stdout.extend(self._cmd.stdout.readlines())
         return stdout
 
 class Status:
     """Retrieves system status regarding Scsi, associated block devices and mountpoints."""
-    __mountStatus = None
-    __swapStatus = None
-    __devStatus = None # simple list of scsi device names available
-    __devList = None # list of devices
-    __sudo = None # sudo handler for the current system
+    _mountStatus = None
+    _swapStatus = None
+    _devStatus = None # simple list of scsi device names available
+    _devList = None # list of devices
+    _sudo = None # sudo handler for the current system
     sudoPwdFct = None # The function to call when a sudo password is required. 
                       # It has to return a string.
 
@@ -228,27 +228,27 @@ class Status:
                 raise MyError("Specified device path '"+path+"' does not exist !")
 
     def sudoHandler(self):
-        if not self.__sudo or len(self.__sudo) == 0:
-            self.__sudo = None
+        if not self._sudo or len(self._sudo) == 0:
+            self._sudo = None
             for handler in knownSudoHandlers:
                 for path in os.environ["PATH"].split(":"):
                     handlerPath = os.path.join(path, handler[0])
                     if not os.path.isfile(handlerPath):
                         continue
                     # keep the plain command name, add the full path
-                    self.__sudo = handler[1:] # arguments
-                    self.__sudo[:0] = [handler[0], handlerPath] # prepend command
+                    self._sudo = handler[1:] # arguments
+                    self._sudo[:0] = [handler[0], handlerPath] # prepend command
                     if self._sudoHandlerWorks():
                         break
                 if self._sudoHandlerWorks():
                     break
-        if not self.__sudo or len(self.__sudo) == 0:
+        if not self._sudo or len(self._sudo) == 0:
             raise MyError("No sudo handler found: "+str(knownSudoHandlers))
         else:
-            return self.__sudo
+            return self._sudo
 
     def _sudoHandlerWorks(self):
-        if self.__sudo is None:
+        if self._sudo is None:
             return False
         try:
             text = "sudotest"
@@ -256,7 +256,7 @@ class Status:
             if cmd.output()[0] != text:
                 raise Exception
         except Exception, e:
-            self.__sudo = None
+            self._sudo = None
             return False
         else:
             return True
@@ -264,57 +264,57 @@ class Status:
     def update(self):
         self.devStatusChanged()
         self.mountStatusChanged()
-        self.__swapStatus = SwapStatus()
-        self.__devList = getScsiDevices(OsSysPath)
+        self._swapStatus = SwapStatus()
+        self._devList = getScsiDevices(OsSysPath)
 
     def devStatusChanged(self):
         devStatus = [os.path.basename(p) for p in glob.glob(OsSysPath+os.sep+"*")]
-        if not self.__devStatus or len(self.__devStatus) != len(devStatus):
-            self.__devStatus = devStatus
+        if not self._devStatus or len(self._devStatus) != len(devStatus):
+            self._devStatus = devStatus
             return True
         # compare lists, same length
-        for d in self.__devStatus:
+        for d in self._devStatus:
             if not d in devStatus:
-                self.__devStatus = devStatus
+                self._devStatus = devStatus
                 return True
         return False
 
     def mountStatusChanged(self):
         mountStatus = MountStatus()
-        if not self.__mountStatus or self.__mountStatus != mountStatus:
-            self.__mountStatus = mountStatus
+        if not self._mountStatus or self._mountStatus != mountStatus:
+            self._mountStatus = mountStatus
             return True
         return False
 
     def getDevices(self):
         self.update()
-        return self.__devList
+        return self._devList
 
-    def swap(self): return self.__swapStatus
-    def mount(self): return self.__mountStatus
+    def swap(self): return self._swapStatus
+    def mount(self): return self._mountStatus
 
 class SwapStatus:
     """Summary of active swap partitions or devices"""
 
-    __swapData = None
-    __devices = None
+    _swapData = None
+    _devices = None
 
     def __init__(self):
         """Returns the output of the 'swapon -s' command, line by line"""
         cmd = SysCmd(["/sbin/swapon","-s"])
-        self.__swapData = cmd.output()
+        self._swapData = cmd.output()
         # get a list of swap devices
-        self.__devices = []
-        for line in self.__swapData:
+        self._devices = []
+        for line in self._swapData:
             lineList = line.replace("\t"," ").split()
             if lineList[1] != "partition":
                 continue
-            self.__devices.append(lineList[0])
+            self._devices.append(lineList[0])
 
     def isSwapDev(self, ioFile):
-        if not self.__devices or len(self.__devices) < 1:
+        if not self._devices or len(self._devices) < 1:
             return False
-        resList = filter(strInList(ioFile), self.__devices)
+        resList = filter(strInList(ioFile), self._devices)
         if resList and len(resList) > 0:
             return True
         else:
@@ -323,26 +323,26 @@ class SwapStatus:
 class MountStatus:
     """Status of all the filesystems mounted in the system"""
 
-    __mountData = None
+    _mountData = None
 
     def __init__(self):
         """Returns the output of the 'mount' command, line by line"""
         cmd = SysCmd(["mount"])
-        self.__mountData = cmd.output()
+        self._mountData = cmd.output()
 
     def __eq__(self, other):
-        return "".join(self.__mountData) == "".join(other.data())
+        return "".join(self._mountData) == "".join(other.data())
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def data(self):
-        return self.__mountData
+        return self._mountData
 
     def getMountPoint(self, ioFile):
-        if not self.__mountData or len(self.__mountData) < 1:
+        if not self._mountData or len(self._mountData) < 1:
             return ""
-        resList = filter(strInList(ioFile+" "), self.__mountData)
+        resList = filter(strInList(ioFile+" "), self._mountData)
         mountPoint = ""
         if resList and len(resList) > 0:
             mountPoint = resList[0].split("on")[1]
@@ -355,19 +355,19 @@ class MountStatus:
         return mountPoint
 
 class Device:
-    __sysfsPath = None # path to the device descriptor in /sys/
+    _sysfsPath = None # path to the device descriptor in /sys/
 
     def __init__(self, path = ""):
         path = os.path.realpath(path)
         self.setSysfs(path)
 
     def sysfs(self):
-        return self.__sysfsPath
+        return self._sysfsPath
 
     def setSysfs(self, path):
         if not os.path.isdir(path):
             raise MyError("Device path does not exist: "+path)
-        self.__sysfsPath = path
+        self._sysfsPath = path
 
     def isBlock(self):
         """Returns True if the Device is a BlockDevice."""
@@ -386,14 +386,14 @@ class Device:
         return ""
 
 class BlockDevice(Device):
-    __devName = None
-    __ioFile = None
-    __devNum = None
-    __size = None
-    __partitions = None # list of BlockDevices
-    __holders = None    # list of BlockDevices
-    __mountPoint = None
-    __timeStamp = None
+    _devName = None
+    _ioFile = None
+    _devNum = None
+    _size = None
+    _partitions = None # list of BlockDevices
+    _holders = None    # list of BlockDevices
+    _mountPoint = None
+    _timeStamp = None
 
     # getter methods
 
@@ -405,28 +405,28 @@ class BlockDevice(Device):
 
     def ioFile(self): 
         """Returns the absolute filename of the block device file (usually in /dev/)."""
-        if not self.__ioFile: return ""
-        return self.__ioFile
+        if not self._ioFile: return ""
+        return self._ioFile
 
     def mountPoint(self): 
         """Returns the absolute path where this device is mounted. Empty if unmounted."""
-        if not self.__mountPoint: return ""
-        return self.__mountPoint
+        if not self._mountPoint: return ""
+        return self._mountPoint
 
     def size(self): 
         """Returns the block devices size in bytes."""
-        if not self.__size: return -1
-        return self.__size
+        if not self._size: return -1
+        return self._size
 
     def partitions(self): 
         """Returns the partitions as list of BlockDevices"""
-        if not self.__partitions: return []
-        return self.__partitions
+        if not self._partitions: return []
+        return self._partitions
 
     def holders(self): 
         """Returns the holders as list of BlockDevices"""
-        if not self.__holders: return []
-        return self.__holders
+        if not self._holders: return []
+        return self._holders
 
     def isBlock(self): return True
 
@@ -435,15 +435,15 @@ class BlockDevice(Device):
     def __init__(self, sysfsPath, blkDevName):
         Device.__init__(self, sysfsPath)
         self.setSysfs(self.sysfs() + os.sep)
-        self.__devName = blkDevName
-        self.__size = getSize(sysfsPath)
-        if self.__size < 0:
+        self._devName = blkDevName
+        self._size = getSize(sysfsPath)
+        if self._size < 0:
             raise MyError("Could not determine block device size")
         self.getDeviceNumber()
-        self.__ioFile = getIoFilename(self.__devNum)
-        if not os.path.exists(self.__ioFile):
+        self._ioFile = getIoFilename(self._devNum)
+        if not os.path.exists(self._ioFile):
             raise MyError("Could not find IO device path '"
-                          +self.__ioFile+"'")
+                          +self._ioFile+"'")
         self.timeStamp()
         self.update()
         # final verification
@@ -452,29 +452,29 @@ class BlockDevice(Device):
 
     def update(self):
         # determine mount point
-        self.__mountPoint = status.mount().getMountPoint(self.__ioFile)
-        if self.__mountPoint != "swap" and not os.path.isdir(self.__mountPoint):
-            self.__mountPoint = None
+        self._mountPoint = status.mount().getMountPoint(self._ioFile)
+        if self._mountPoint != "swap" and not os.path.isdir(self._mountPoint):
+            self._mountPoint = None
         # get partitions eventually
-        partitions = self.getSubDev(self.sysfs(), self.__devName+"*")
-        self.__partitions = []
-        addSubDevices(self.__partitions, partitions, self.sysfs())
+        partitions = self.getSubDev(self.sysfs(), self._devName+"*")
+        self._partitions = []
+        addSubDevices(self._partitions, partitions, self.sysfs())
         # get holders eventually
         basePath = self.sysfs()+"holders"+os.sep
         holders = self.getSubDev(basePath, "*")
-        self.__holders = []
-        addSubDevices(self.__holders, holders, basePath)
+        self._holders = []
+        addSubDevices(self._holders, holders, basePath)
 
     def inUse(self):
-        if self.__holders and len(self.__holders) > 0:
-            for h in self.__holders:
+        if self._holders and len(self._holders) > 0:
+            for h in self._holders:
                 if h.inUse():
                     return True
-        if self.__partitions and len(self.__partitions) > 0:
-            for p in self.__partitions:
+        if self._partitions and len(self._partitions) > 0:
+            for p in self._partitions:
                 if p.inUse():
                     return True
-        if self.__mountPoint:
+        if self._mountPoint:
             return True
         return False
 
@@ -491,20 +491,20 @@ class BlockDevice(Device):
 
     def __str__(self):
         res = ""
-        for attr in [self.__devName, self.__ioFile, self.__mountPoint, 
-                     formatSize(self.__size), self.__devNum, self.sysfs()]:
+        for attr in [self._devName, self._ioFile, self._mountPoint, 
+                     formatSize(self._size), self._devNum, self.sysfs()]:
             res = res + str(attr) + " "
 
         global outputIndent
         outputIndent = outputIndent + "  "
         prefix = "\n" + outputIndent
-        if self.__holders:
+        if self._holders:
             res = res + prefix + "[holders:]"
-            for h in self.__holders:
+            for h in self._holders:
                 res = res + prefix + str(h)
-        elif self.__partitions:
+        elif self._partitions:
             res = res + prefix + "[partitions:]"
-            for p in self.__partitions:
+            for p in self._partitions:
                 res = res + prefix + str(p)
         else:
             pass
@@ -514,49 +514,49 @@ class BlockDevice(Device):
         return res
 
     def isValid(self):
-        return self.__devName and \
+        return self._devName and \
                 os.path.isdir(self.sysfs()) and \
-                os.path.exists(self.__ioFile) and \
-                self.__devNum > 0 and \
-                self.__size >= 0
+                os.path.exists(self._ioFile) and \
+                self._devNum > 0 and \
+                self._size >= 0
 
     def timeStamp(self):
         """Get the time this device was added to the system."""
-        if not self.__timeStamp:
+        if not self._timeStamp:
             if not os.path.exists(self.ioFile()):
-                self.__timeStamp = -1
+                self._timeStamp = -1
             else:
                 try:
                     statinfo = os.stat(self.ioFile())
                 except Exception, e:
-                    self.__timeStamp = -1
+                    self._timeStamp = -1
                 else:
                     mtime = statinfo[stat.ST_MTIME]
                     atime = statinfo[stat.ST_ATIME]
                     ctime = statinfo[stat.ST_CTIME]
-                    self.__timeStamp = mtime
+                    self._timeStamp = mtime
                     # get the oldest timestamp
-                    if atime < self.__timeStamp:
-                        self.__timeStamp = atime
-                    if ctime < self.__timeStamp:
-                        self.__timeStamp = ctime
-        return self.__timeStamp
+                    if atime < self._timeStamp:
+                        self._timeStamp = atime
+                    if ctime < self._timeStamp:
+                        self._timeStamp = ctime
+        return self._timeStamp
 
     def getDeviceNumber(self):
-        if not self.__devNum:
+        if not self._devNum:
             fn = os.path.join(self.sysfs(),"dev")
             if not os.path.isfile(fn):
                 return -1
             (major, minor) = getLineFromFile(fn).split(":")
             if not major or not minor or major < 0 or minor < 0:
                 return -1
-            self.__devNum = os.makedev(int(major), int(minor))
-        return self.__devNum
+            self._devNum = os.makedev(int(major), int(minor))
+        return self._devNum
 
     def mount(self, password = None):
         """Mount block device"""
         # no partitions
-        if len(self.__partitions) == 0:
+        if len(self._partitions) == 0:
             if not os.path.exists(self.ioFile()): return
             if self.inUse():
                 raise DeviceInUseWarning()
@@ -572,17 +572,17 @@ class BlockDevice(Device):
                     cmd.output()
                 except MyError, e:
                     raise MyError("Failed to mount "+self.ioFile()+": "+str(e))
-        elif len(self.__partitions) == 1:
-            self.__partitions[0].mount()
+        elif len(self._partitions) == 1:
+            self._partitions[0].mount()
         else:
             raise DeviceHasPartitionsWarning()
         self.update()
 
     def umount(self):
         """Unmount block device"""
-        for part in self.__partitions:
+        for part in self._partitions:
             part.umount()
-        for holder in self.__holders:
+        for holder in self._holders:
             holder.umount()
         if not os.path.isdir(self.mountPoint()):
             return
@@ -590,7 +590,7 @@ class BlockDevice(Device):
         isTruecrypt = strInList("truecrypt")
         try:
             cmd = None
-            if isTruecrypt(self.__ioFile):
+            if isTruecrypt(self._ioFile):
                 # --non-interactive
                 cmd = SysCmd(["truecrypt", "-t", "--non-interactive", "-d", self.mountPoint()], True)
             else:
@@ -605,9 +605,9 @@ class BlockDevice(Device):
     def flush(self):
         """Flushes the device buffers."""
 #        print "flush", self.ioFile()
-        for part in self.__partitions:
+        for part in self._partitions:
             part.flush()
-        for holder in self.__holders:
+        for holder in self._holders:
             holder.flush()
         if self.inUse() or not os.path.exists(self.ioFile()):
             return
@@ -650,11 +650,11 @@ def addSubDevices(outList, devNameList, basePath):
 ### end BlockDevice related stuff
 
 class ScsiDevice(Device):
-    __scsiAdr = None # list with <host> <channel> <id> <lun>
-    __dev = None     # associated Block device object
-    __driverName = None
-    __vendor = None
-    __model = None
+    _scsiAdr = None # list with <host> <channel> <id> <lun>
+    _dev = None     # associated Block device object
+    _driverName = None
+    _vendor = None
+    _model = None
 
     # getter methods
 
@@ -666,12 +666,12 @@ class ScsiDevice(Device):
 
     def blk(self): 
         """Returns the associated BlockDevice."""
-        return self.__dev
+        return self._dev
 
     def scsiStr(self): 
         """Returns the SCSI address of this device as string."""
-        if not self.__scsiAdr: return ""
-        return "["+reduce(lambda a, b: a+":"+b, self.__scsiAdr)+"]"
+        if not self._scsiAdr: return ""
+        return "["+reduce(lambda a, b: a+":"+b, self._scsiAdr)+"]"
 
     def isScsi(self): return True
 
@@ -679,17 +679,17 @@ class ScsiDevice(Device):
 
     def inUse(self): 
         """Tells if this device is in use somehow (has mounted partitions)."""
-        return self.__dev.inUse()
+        return self._dev.inUse()
 
-    def mount(self): return self.__dev.mount()
-    def umount(self): return self.__dev.umount()
-    def flush(self): return self.__dev.flush()
+    def mount(self): return self._dev.mount()
+    def umount(self): return self._dev.umount()
+    def flush(self): return self._dev.flush()
 
     # setup code
 
     def __init__(self, path, scsiStr):
         Device.__init__(self, os.path.join(path, scsiStr, "device"))
-        self.__scsiAdr = scsiStr.split(":")
+        self._scsiAdr = scsiStr.split(":")
         if not self.isSupported():
             # throw exception here
             raise MyError("Device type not supported")
@@ -697,7 +697,7 @@ class ScsiDevice(Device):
         if not name or not path:
             # throw exception
             raise MyError("Could not determine block device path in /sys/")
-        self.__dev = BlockDevice(path, name)
+        self._dev = BlockDevice(path, name)
         self.driver()
         self.vendor()
         self.model()
@@ -707,31 +707,31 @@ class ScsiDevice(Device):
             raise MyError("Determined Scsi device information not valid")
 
     def model(self):
-        if self.__model and len(self.__model) > 0:
-            return self.__model
-        self.__model = ""
+        if self._model and len(self._model) > 0:
+            return self._model
+        self._model = ""
         fn = os.path.join(self.sysfs(),"model")
         if os.path.isfile(fn):
             txt = getLineFromFile(fn)
             if len(txt) > 0:
-                self.__model = txt
-        return self.__model
+                self._model = txt
+        return self._model
 
     def vendor(self):
-        if self.__vendor and len(self.__vendor) > 0:
-            return self.__vendor
-        self.__vendor = ""
+        if self._vendor and len(self._vendor) > 0:
+            return self._vendor
+        self._vendor = ""
         fn = os.path.join(self.sysfs(),"vendor")
         if os.path.isfile(fn):
             txt = getLineFromFile(fn)
             if len(txt) > 0:
-                self.__vendor = txt
-        return self.__vendor
+                self._vendor = txt
+        return self._vendor
 
     def driver(self):
-        if self.__driverName and len(self.__driverName) > 0:
-            return self.__driverName
-        sysfsPath = self.__dev.sysfs()
+        if self._driverName and len(self._driverName) > 0:
+            return self._driverName
+        sysfsPath = self._dev.sysfs()
         if not os.path.isdir(sysfsPath):
             return ""
         path = os.path.realpath(os.path.join(sysfsPath,"device"))
@@ -740,8 +740,8 @@ class ScsiDevice(Device):
         (path,tail) = os.path.split(path)
         path = os.path.realpath(os.path.join(path,"driver"))
         (path,tail) = os.path.split(path)
-        self.__driverName = tail
-        return self.__driverName
+        self._driverName = tail
+        return self._driverName
 
     def timeStamp(self):
         """Get the time this device was added to the system."""
@@ -762,9 +762,9 @@ class ScsiDevice(Device):
             return False
 
     def isValid(self):
-        return (len(self.__scsiAdr) == 4 and
+        return (len(self._scsiAdr) == 4 and
                 self.sysfs() and os.path.isdir(self.sysfs()) and
-                self.__dev.isValid())
+                self._dev.isValid())
         # test for every blk device being valid
 
     def remove(self):
@@ -783,7 +783,7 @@ class ScsiDevice(Device):
             if not os.path.isfile(delPath):
                 raise MyError("Could not find '"+delPath+"'")
             else:
-                self.__dev.flush()
+                self._dev.flush()
                 try:
                     cmd = SysCmd(["sh -c 'echo 1 > "+delPath+"'"], True)
                 except CmdReturnCodeError, e:
@@ -796,12 +796,12 @@ class ScsiDevice(Device):
         """Outputs full detailed information about this devices"""
         if not self.isValid():
             return "not valid!"
-        output = str(self.__scsiAdr) + \
-                ", in use: " + str(self.__dev.inUse()) + \
-                ", driver: " + str(self.__driverName) + \
-                ", vendor: " + str(self.__vendor) + \
-                ", model: " + str(self.__model) + \
-                "\n" + str(self.__dev)
+        output = str(self._scsiAdr) + \
+                ", in use: " + str(self._dev.inUse()) + \
+                ", driver: " + str(self._driverName) + \
+                ", vendor: " + str(self._vendor) + \
+                ", model: " + str(self._model) + \
+                "\n" + str(self._dev)
         return output
 
 def getBlkDevPath(devPath):

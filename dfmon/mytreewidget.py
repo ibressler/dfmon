@@ -81,33 +81,33 @@ class ActionHandler(QObject):
 class MyTreeWidgetItem(QTreeWidgetItem):
     """An item (row) in the GUI device tree. Has an associated device and 
     keeps track of the existing and visible children of a node."""
-    __dev = None # one element list (&reference ?)
-    __overallChildCount = None
-    __visibleChildCount = None
+    _dev = None # one element list (&reference ?)
+    _overallChildCount = None
+    _visibleChildCount = None
 
     def dev(self):
-        return self.__dev[0]
+        return self._dev[0]
 
     # setup methods
 
     def __init__(self, dev):
         QTreeWidgetItem.__init__(self, None)
-        #self.__dev = dev # this produces cascaded instance duplication somehow
+        #self._dev = dev # this produces cascaded instance duplication somehow
         # don't want to copy the complete Device incl. sublists
-        self.__dev = [dev]
-        self.__overallChildCount = 0
-        self.__visibleChildCount = 0
+        self._dev = [dev]
+        self._overallChildCount = 0
+        self._visibleChildCount = 0
         self.configure()
 
     def expanded(self):
-        self.__visibleChildCount = self.childCount()
+        self._visibleChildCount = self.childCount()
         for i in range(0, self.childCount()):
-            self.__visibleChildCount += self.child(i).visibleChildCount()
+            self._visibleChildCount += self.child(i).visibleChildCount()
         if self.parent():
             self.parent().expanded()
 
     def collapsed(self):
-        self.__visibleChildCount = 0
+        self._visibleChildCount = 0
         if self.parent():
             self.parent().expanded()
 
@@ -119,7 +119,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         for holder in dev.holders():
             item.addBlockDevice(holder)
         self.addChild(item)
-        self.__overallChildCount += 1 + item.overallChildCount()
+        self._overallChildCount += 1 + item.overallChildCount()
 
     def configure(self):
         if not self.dev(): return
@@ -157,11 +157,11 @@ class MyTreeWidgetItem(QTreeWidgetItem):
 
     def overallChildCount(self):
         """Returns the recursive child count."""
-        return self.__overallChildCount
+        return self._overallChildCount
 
     def visibleChildCount(self):
         """Returns the recursive child count."""
-        return self.__visibleChildCount
+        return self._visibleChildCount
 
     def expandAll(self):
         self.setExpanded(True)
@@ -170,41 +170,41 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             self.child(i).expandAll()
 
 class MyTreeWidget(QTreeWidget):
-    __visibleRowCount = None # overall count of rows
-    __ioThread = None
-    __checkInterval = 500 # in milliseconds
+    _visibleRowCount = None # overall count of rows
+    _ioThread = None
+    _checkInterval = 500 # in milliseconds
 
     def __init__(self, parent=None):
         QTreeWidget.__init__(self, parent)
-        self.__ioThread = IoThread(self)
-        self.__timer = QTimer()
+        self._ioThread = IoThread(self)
+        self._timer = QTimer()
         # connect some signals/slots
         QObject.connect(self, SIGNAL("customContextMenuRequested(const QPoint&)"), self.contextMenu)
         QObject.connect(self, SIGNAL("itemCollapsed(QTreeWidgetItem *)"), self.itemCollapsedOrExpanded)
         QObject.connect(self, SIGNAL("itemExpanded(QTreeWidgetItem *)"), self.itemCollapsedOrExpanded)
-        QObject.connect(self.__ioThread, SIGNAL("started(void)"), self.connectIoThread)
-        self.__visibleRowCount = 0
-        self.__ioThread.start()
+        QObject.connect(self._ioThread, SIGNAL("started(void)"), self.connectIoThread)
+        self._visibleRowCount = 0
+        self._ioThread.start()
 
     def cleanup(self):
         """Stops the ioThread."""
-        self.__ioThread.quit()
-        while self.__ioThread.isRunning() and not self.__ioThread.isFinished():
-            self.__ioThread.wait()
+        self._ioThread.quit()
+        while self._ioThread.isRunning() and not self._ioThread.isFinished():
+            self._ioThread.wait()
 
     def connectIoThread(self):
-        if self.__ioThread.isRunning():
-            QObject.connect(self.__ioThread.actionHandler, 
+        if self._ioThread.isRunning():
+            QObject.connect(self._ioThread.actionHandler, 
                             SIGNAL("actionDone(void)"), 
                             self.refreshAction, Qt.QueuedConnection)
-            QObject.connect(self.__ioThread.actionHandler, 
+            QObject.connect(self._ioThread.actionHandler, 
                             SIGNAL("exception(QString, PyQt_PyObject)"), 
                             self.exceptionHandler, Qt.QueuedConnection)
-            QObject.connect(self.__ioThread.actionHandler, SIGNAL("passwordDialog(PyQt_PyObject)"), 
+            QObject.connect(self._ioThread.actionHandler, SIGNAL("passwordDialog(PyQt_PyObject)"), 
                             self.passwordDialog, Qt.BlockingQueuedConnection)
-            QObject.connect(self.__timer, SIGNAL("timeout(void)"), 
+            QObject.connect(self._timer, SIGNAL("timeout(void)"), 
                             self.refreshActionIfNeeded)
-            self.__timer.start(self.__checkInterval)
+            self._timer.start(self._checkInterval)
 
     def passwordDialog(self, resList):
         (input, ok) = QInputDialog.getText(self,
@@ -230,7 +230,7 @@ class MyTreeWidget(QTreeWidget):
         hint.setWidth(widthHint)
         # set height according to # rows
         h = self.indexRowSizeHint(self.indexFromItem(self.invisibleRootItem().child(0))) # one row
-        heightHint = (self.__visibleRowCount+1) * h \
+        heightHint = (self._visibleRowCount+1) * h \
                     + self.header().height() \
                     + 2*2 # magic margin 2+2
         # stay within desktop area
@@ -248,21 +248,21 @@ class MyTreeWidget(QTreeWidget):
         menu = QMenu(self)
         if item.dev().isScsi():
             removeAction = MyAction(item.dev().remove, tr("umount all && remove"), menu)
-            if self.__ioThread.isRunning():
+            if self._ioThread.isRunning():
                 QObject.connect(removeAction, SIGNAL("triggered(QString, PyQt_PyObject)"), 
-                            self.__ioThread.actionHandler.doAction, Qt.QueuedConnection)
+                            self._ioThread.actionHandler.doAction, Qt.QueuedConnection)
             menu.addAction(removeAction)
         if item.dev().inUse():
             umountAction = MyAction(item.dev().umount, tr("umount"), menu)
-            if self.__ioThread.isRunning():
+            if self._ioThread.isRunning():
                 QObject.connect(umountAction, SIGNAL("triggered(QString, PyQt_PyObject)"), 
-                            self.__ioThread.actionHandler.doAction, Qt.QueuedConnection)
+                            self._ioThread.actionHandler.doAction, Qt.QueuedConnection)
             menu.addAction(umountAction)
         else: # not in use
             mountAction = MyAction(item.dev().mount, tr("mount with truecrypt"), menu)
-            if self.__ioThread.isRunning():
+            if self._ioThread.isRunning():
                 QObject.connect(mountAction, SIGNAL("triggered(QString, PyQt_PyObject)"), 
-                            self.__ioThread.actionHandler.doAction, Qt.QueuedConnection)
+                            self._ioThread.actionHandler.doAction, Qt.QueuedConnection)
             menu.addAction(mountAction)
         menu.addSeparator()
         refreshAction = QAction(tr("refresh all"), menu)
@@ -306,7 +306,7 @@ class MyTreeWidget(QTreeWidget):
             # (let the system create device files, etc..)
             # sometimes, an exception occurs here (for 500ms delay):
             # "Could not find IO device path" BlockDevice.__init__()
-            QTimer.singleShot(int(2*self.__checkInterval), self.refreshAction)
+            QTimer.singleShot(int(2*self._checkInterval), self.refreshAction)
 
     def refreshAction(self, checked = False):
         """Updates items as needed"""
@@ -345,8 +345,8 @@ class MyTreeWidget(QTreeWidget):
 
     def setVisibleRowCount(self):
         rootItem = self.invisibleRootItem()
-        self.__visibleRowCount = rootItem.childCount()
+        self._visibleRowCount = rootItem.childCount()
         for i in range(0, rootItem.childCount()):
-            self.__visibleRowCount += rootItem.child(i).visibleChildCount()
+            self._visibleRowCount += rootItem.child(i).visibleChildCount()
 
 # vim: set ts=4 sw=4 tw=0:
