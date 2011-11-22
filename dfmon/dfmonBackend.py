@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 # dfmonBackend.py
 #
+# Copyright (c) 2010-2011, Ingo Breßler <dfmon@ingobressler.net>
+#
 # This file is part of dfmon.
 #
 # dfmon is free software: you can redistribute it and/or modify
@@ -15,9 +17,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with dfmon.  If not, see <http://www.gnu.org/licenses/>.
-#
-# Authors:
-#     Ingo Bressler (April 2010)
 
 """dfmon backend intelligence
 
@@ -889,3 +888,5 @@ def getScsiDevices(path):
 
 # get initial system status
 status = Status()
+
+# vim: set ts=4 sw=4 tw=0:
