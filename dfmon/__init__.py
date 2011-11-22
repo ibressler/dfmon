@@ -18,12 +18,19 @@
 # You should have received a copy of the GNU General Public License
 # along with dfmon.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Entry point for starting the application.
+
+Command line parsing happens here.
+It also decides if CLI or GUI is started.
+"""
+
 import sys
 import os
 import getopt
 
-from dfmonCmd import consoleMenu
-from dfmonQt import qtMenu
+from uicmd import consoleMenu
+from uiqt import qtMenu
 
 class Usage(Exception):
     def __init__(self, msg):
@@ -47,16 +54,16 @@ def main(argv=None):
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "hc", ["help", "console"])
+            opts, dummy = getopt.getopt(argv[1:], "hc", ["help", "console"])
         except getopt.error, msg:
-             raise Usage(msg)
+            raise Usage(msg)
     except Usage, err:
-        print >>sys.stderr, err.msg
-        print >>sys.stderr, cmdName(argv)+": For help use --help"
+        print >> sys.stderr, err.msg
+        print >> sys.stderr, cmdName(argv)+": For help use --help"
         return 2
 #    print "opts:", opts, "args:", args
     if (unicode("-h"), "") in opts or (unicode("--help"), "") in opts:
-        print >>sys.stdout, showUsage(argv)
+        print >> sys.stdout, showUsage(argv)
         return 0
     elif (unicode("-c"), "") in opts or (unicode("--console"), "") in opts:
         return consoleMenu()

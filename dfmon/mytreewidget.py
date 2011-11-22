@@ -18,7 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with dfmon.  If not, see <http://www.gnu.org/licenses/>.
 
-"""QTreeWidget subclass for the tree structure of the Qt-GUI of dfmon.
+"""
+QTreeWidget subclass for the tree structure of the Qt-GUI of dfmon.
 
 Initial motivation was a custom sizeHint (fixed to fit the content).
 But also data access (Scsi- and BlockDevice) and action processing is 
@@ -26,11 +27,12 @@ implemented here.
 """
 
 import time
-import cPickle
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-import dfmonBackend
-from dfmonBackend import formatSize, formatTimeDistance
+from PyQt4.QtCore import (QObject, QCoreApplication, SIGNAL, QThread, Qt,
+                          QVariant, QTimer, QString)
+from PyQt4.QtGui import (QAction, QTreeWidgetItem, QTreeWidget, QLineEdit,
+                         QInputDialog, QMenu, QMessageBox)
+import backend
+from backend import formatSize, formatTimeDistance
 
 def tr(s): # translation shortcut
     return QCoreApplication.translate(None, s)
@@ -45,7 +47,7 @@ class MyAction(QAction):
 
     def triggerAction(self, checked = False):
         if self.methodObj:
-            QObject.emit(self, SIGNAL("triggered(QString, PyQt_PyObject)"), \
+            QObject.emit(self, SIGNAL("triggered(QString, PyQt_PyObject)"),
                                             self.text(), self.methodObj)
 
 class IoThread(QThread):
@@ -56,7 +58,7 @@ class IoThread(QThread):
 
     def run(self):
         self.actionHandler = ActionHandler()
-        dfmonBackend.status.sudoPwdFct = self.actionHandler.emitPwdSignal
+        backend.STATUS.sudoPwdFct = self.actionHandler.emitPwdSignal
         self.exec_()
 
 class ActionHandler(QObject):
@@ -68,10 +70,10 @@ class ActionHandler(QObject):
         try:
             methodObj()
         except Exception, e:
-            QObject.emit(self, SIGNAL("exception(QString, PyQt_PyObject)"), text, e)
+            QObject.emit(self, SIGNAL("exception(QString, PyQt_PyObject)"),
+                         text, e)
         finally:
             QObject.emit(self, SIGNAL("actionDone(void)"))
-#        print "doAction post"
 
     def emitPwdSignal(self):
         resList = [""]
@@ -112,7 +114,8 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             self.parent().expanded()
 
     def addBlockDevice(self, dev):
-        if not dev: return
+        if not dev:
+            return
         item = MyTreeWidgetItem(dev)
         for part in dev.partitions():
             item.addBlockDevice(part)
@@ -122,7 +125,8 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         self._overallChildCount += 1 + item.overallChildCount()
 
     def configure(self):
-        if not self.dev(): return
+        if not self.dev():
+            return
         self.setText(0, self.dev().shortName())
         # decide usage status
         toolTip = tr("[not used]")
@@ -151,7 +155,8 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         # finally set the extended info
         self.setToolTip(0, toolTip)
         self.setStatusTip(0, statusTip)
-        self.setData(0, Qt.UserRole, QVariant(self.dev().inUse())) # for the delegate
+        self.setData(0, Qt.UserRole,
+                     QVariant(self.dev().inUse())) # for the delegate
         if self.dev().isScsi():
             self.addBlockDevice(self.dev().blk())
 
@@ -179,63 +184,76 @@ class MyTreeWidget(QTreeWidget):
         self._ioThread = IoThread(self)
         self._timer = QTimer()
         # connect some signals/slots
-        QObject.connect(self, SIGNAL("customContextMenuRequested(const QPoint&)"), self.contextMenu)
-        QObject.connect(self, SIGNAL("itemCollapsed(QTreeWidgetItem *)"), self.itemCollapsedOrExpanded)
-        QObject.connect(self, SIGNAL("itemExpanded(QTreeWidgetItem *)"), self.itemCollapsedOrExpanded)
-        QObject.connect(self._ioThread, SIGNAL("started(void)"), self.connectIoThread)
+        QObject.connect(self,
+                        SIGNAL("customContextMenuRequested(const QPoint&)"),
+                        self.contextMenu)
+        QObject.connect(self,
+                        SIGNAL("itemCollapsed(QTreeWidgetItem *)"),
+                        self.itemCollapsedOrExpanded)
+        QObject.connect(self,
+                        SIGNAL("itemExpanded(QTreeWidgetItem *)"),
+                        self.itemCollapsedOrExpanded)
+        QObject.connect(self._ioThread,
+                        SIGNAL("started(void)"),
+                        self.connectIoThread)
         self._visibleRowCount = 0
         self._ioThread.start()
 
     def cleanup(self):
         """Stops the ioThread."""
         self._ioThread.quit()
-        while self._ioThread.isRunning() and not self._ioThread.isFinished():
+        while (self._ioThread.isRunning() and
+               not self._ioThread.isFinished()):
             self._ioThread.wait()
 
     def connectIoThread(self):
         if self._ioThread.isRunning():
-            QObject.connect(self._ioThread.actionHandler, 
-                            SIGNAL("actionDone(void)"), 
+            QObject.connect(self._ioThread.actionHandler,
+                            SIGNAL("actionDone(void)"),
                             self.refreshAction, Qt.QueuedConnection)
-            QObject.connect(self._ioThread.actionHandler, 
-                            SIGNAL("exception(QString, PyQt_PyObject)"), 
+            QObject.connect(self._ioThread.actionHandler,
+                            SIGNAL("exception(QString, PyQt_PyObject)"),
                             self.exceptionHandler, Qt.QueuedConnection)
-            QObject.connect(self._ioThread.actionHandler, SIGNAL("passwordDialog(PyQt_PyObject)"), 
+            QObject.connect(self._ioThread.actionHandler,
+                            SIGNAL("passwordDialog(PyQt_PyObject)"),
                             self.passwordDialog, Qt.BlockingQueuedConnection)
-            QObject.connect(self._timer, SIGNAL("timeout(void)"), 
+            QObject.connect(self._timer, SIGNAL("timeout(void)"),
                             self.refreshActionIfNeeded)
             self._timer.start(self._checkInterval)
 
     def passwordDialog(self, resList):
-        (input, ok) = QInputDialog.getText(self,
-                tr("[sudo] Your password"), 
-                tr("Please enter your password to gain the required \npermissions to perform the selected action:"), 
-                QLineEdit.Password)
-        resList[0] = input
+        intext, ok = QInputDialog.getText(self,
+                tr("[sudo] Your password"),
+                tr("Please enter your password to gain the required \n"+
+                   "permissions to perform the selected action:"),
+                    QLineEdit.Password)
+        resList[0] = intext
         if not ok:
             resList[0] = ""
 
     def sizeHint(self):
         """Show all entries so that no scrollbar is required"""
         # sum up all column widths
-        widthHint = self.sizeHintForColumn(0) + 5 # arbitrary margin for beautification
+        widthHint = self.sizeHintForColumn(0) + 5 # arbitrary margin
         # consider the header width
         if widthHint < self.header().sizeHint().width():
             widthHint = self.header().sizeHint().width() + 2*2
         # consider the scrollbar width
-#        if self.verticalScrollBar().isVisible(): # never visible, no reliable
         widthHint += self.verticalScrollBar().width()
         # update the current/original size hint
         hint = QTreeWidget.sizeHint(self)
         hint.setWidth(widthHint)
         # set height according to # rows
-        h = self.indexRowSizeHint(self.indexFromItem(self.invisibleRootItem().child(0))) # one row
-        heightHint = (self._visibleRowCount+1) * h \
-                    + self.header().height() \
-                    + 2*2 # magic margin 2+2
+        h = self.indexRowSizeHint(
+                self.indexFromItem(
+                    self.invisibleRootItem().child(0))) # one row
+        heightHint = ((self._visibleRowCount+1) * h 
+                      + self.header().height() 
+                      + 2 * 2) # magic margin 2+2
         # stay within desktop area
-        desktop = qApp.desktop()
-        maxHeight = desktop.availableGeometry(desktop.screenNumber(self)).height()
+        desktop = QCoreApplication.instance().desktop()
+        maxHeight = desktop.availableGeometry(
+                        desktop.screenNumber(self)).height()
         if heightHint > maxHeight:
             heightHint = maxHeight
         hint.setHeight(heightHint)
@@ -247,26 +265,35 @@ class MyTreeWidget(QTreeWidget):
             return
         menu = QMenu(self)
         if item.dev().isScsi():
-            removeAction = MyAction(item.dev().remove, tr("umount all && remove"), menu)
+            removeAction = MyAction(item.dev().remove,
+                                    tr("umount all && remove"), menu)
             if self._ioThread.isRunning():
-                QObject.connect(removeAction, SIGNAL("triggered(QString, PyQt_PyObject)"), 
-                            self._ioThread.actionHandler.doAction, Qt.QueuedConnection)
+                QObject.connect(removeAction,
+                                SIGNAL("triggered(QString, PyQt_PyObject)"),
+                                self._ioThread.actionHandler.doAction,
+                                Qt.QueuedConnection)
             menu.addAction(removeAction)
         if item.dev().inUse():
             umountAction = MyAction(item.dev().umount, tr("umount"), menu)
             if self._ioThread.isRunning():
-                QObject.connect(umountAction, SIGNAL("triggered(QString, PyQt_PyObject)"), 
-                            self._ioThread.actionHandler.doAction, Qt.QueuedConnection)
+                QObject.connect(umountAction,
+                                SIGNAL("triggered(QString, PyQt_PyObject)"),
+                                self._ioThread.actionHandler.doAction,
+                                Qt.QueuedConnection)
             menu.addAction(umountAction)
         else: # not in use
-            mountAction = MyAction(item.dev().mount, tr("mount with truecrypt"), menu)
+            mountAction = MyAction(item.dev().mount,
+                                   tr("mount with truecrypt"), menu)
             if self._ioThread.isRunning():
-                QObject.connect(mountAction, SIGNAL("triggered(QString, PyQt_PyObject)"), 
-                            self._ioThread.actionHandler.doAction, Qt.QueuedConnection)
+                QObject.connect(mountAction,
+                                SIGNAL("triggered(QString, PyQt_PyObject)"),
+                                self._ioThread.actionHandler.doAction,
+                                Qt.QueuedConnection)
             menu.addAction(mountAction)
         menu.addSeparator()
         refreshAction = QAction(tr("refresh all"), menu)
-        QObject.connect(refreshAction, SIGNAL("triggered(bool)"), self.refreshAction)
+        QObject.connect(refreshAction, SIGNAL("triggered(bool)"),
+                        self.refreshAction)
         menu.addAction(refreshAction)
         # fix popup menu position
         pos = self.mapToGlobal(pos)
@@ -274,24 +301,26 @@ class MyTreeWidget(QTreeWidget):
         menu.popup(pos)
 
     def exceptionHandler(self, text = "", e = None):
-        if not e: return
+        if not e:
+            return
         failureText = QString("Action '%1' failed: \n").arg(text)
         try:
             raise e
-        except dfmonBackend.DeviceInUseWarning, w:
+        except backend.DeviceInUseWarning, dummy:
             QMessageBox.warning(self, tr("Device in Use"), 
                                 failureText+
-                                tr("The selected device is already in use."), 
+                                tr("The selected device is already in use."),
                                 QMessageBox.Ok, QMessageBox.Ok)
-        except dfmonBackend.DeviceHasPartitionsWarning, w:
-            QMessageBox.warning(self, tr("Device contains Partitions"), 
+        except backend.DeviceHasPartitionsWarning, w:
+            QMessageBox.warning(self, tr("Device contains Partitions"),
                                 failureText+
-                                tr("The selected device contains several partitions.\n")+
-                                tr("Please select one directly."), 
+                                tr("The selected device contains "+
+                                   "several partitions.\n")+
+                                tr("Please select one directly."),
                                 QMessageBox.Ok, QMessageBox.Ok)
-        except dfmonBackend.RemovalSuccessInfo, e:
+        except backend.RemovalSuccessInfo, e:
             QMessageBox.information(self, tr("Success"), 
-                    tr("It is safe to unplug the device now."), 
+                    tr("It is safe to unplug the device now."),
                     QMessageBox.Ok, QMessageBox.Ok)
         except Exception, e:
             QMessageBox.critical(self, tr("An Error Occurred"), 
@@ -300,8 +329,8 @@ class MyTreeWidget(QTreeWidget):
                                 QMessageBox.Ok, QMessageBox.Ok)
 
     def refreshActionIfNeeded(self, checked = False):
-        if dfmonBackend.status.devStatusChanged() \
-        or dfmonBackend.status.mountStatusChanged():
+        if backend.STATUS.devStatusChanged() \
+        or backend.STATUS.mountStatusChanged():
             # wait a moment after change detected 
             # (let the system create device files, etc..)
             # sometimes, an exception occurs here (for 500ms delay):
@@ -313,7 +342,8 @@ class MyTreeWidget(QTreeWidget):
 # add recursive __eq__/__ne__ to Scsi/BlockDevice
 # get status, compare new devices with those in the tree
 # if name is the same, remove and add new one at same position
-# otherwise remove obsolete items, add new ones on top (ignore time -> bus reset)
+# otherwise remove obsolete items, add new ones on top
+# (ignore time -> bus reset)
 #        print "refreshAction"
 #        rootItem = self.invisibleRootItem()
 #        for i in range(0, rootItem.childCount()):
@@ -325,7 +355,7 @@ class MyTreeWidget(QTreeWidget):
         QTreeWidget.reset(self)
         rootItem = self.invisibleRootItem()
         try:
-            for dev in dfmonBackend.status.getDevices():
+            for dev in backend.STATUS.getDevices():
 #                print "dev:", dev.scsiStr()
                 item = MyTreeWidgetItem(dev)
                 rootItem.addChild(item)

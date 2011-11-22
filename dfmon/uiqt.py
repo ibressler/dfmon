@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# dfmonQt.py
+# uiqt.py
 #
 # Copyright (c) 2010-2011, Ingo Breßler <dfmon@ingobressler.net>
 #
@@ -21,13 +21,14 @@
 """Qt GUI for dfmon.
 """
 
-import sys
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt4.QtCore import (Qt, QString, QRect, QObject, QCoreApplication,
+                          SIGNAL)
+from PyQt4.QtGui import (QItemDelegate, QStyle, QColor, QApplication,
+                         QMainWindow)
 from mainwindow import Ui_MainWindow
 
 def tr(s):
-   return QCoreApplication.translate(None, s)
+    return QCoreApplication.translate(None, s)
 
 class MyItemDelegate(QItemDelegate):
     """Row color based on device usage state."""
@@ -56,16 +57,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         delegate = MyItemDelegate(self.treeWidget.itemDelegate())
         self.treeWidget.setItemDelegate(delegate)
         headerItem = self.treeWidget.headerItem()
-        headerItem.setText(0,tr("available devices"))
+        headerItem.setText(0, tr("available devices"))
         headerItem.setTextAlignment(0, Qt.AlignHCenter)
-        headerItem.setToolTip(0, QString("%1 %2").arg(self.windowTitle(), "0.1")
-                            +QString("\n%1").arg(u"Copyright (C) 2010  Ingo Bressler")
-                            +QString("\n%1\n%2\n%3").arg("This program comes with ABSOLUTELY", "NO WARRANTY. This is free software, use", "and redistribute it under the terms of the GPLv3.")
-                            +QString("\n%1\n%2").arg(tr("For information, feedback and contributions, please visit:"), "http://github.com/ibressler/dfmon"))
+        headerItem.setToolTip(0,
+                              QString("%1 %2")
+                              .arg(self.windowTitle(), "0.1")+
+                              QString("\n%1")
+                              .arg(u"Copyright (C) 2010  Ingo Bressler")+
+                              QString("\n%1\n%2\n%3")
+                              .arg("This program comes with ABSOLUTELY",
+                                   "NO WARRANTY. This is free software, use",
+                                   "and redistribute it under the terms of "+
+                                   "the GPLv3.")+
+                              QString("\n%1\n%2")
+                              .arg(tr("For information, feedback and "+
+                                      "contributions, please visit:"),
+                                   "http://github.com/ibressler/dfmon"))
         self.treeWidget.setMouseTracking(True)
-        QObject.connect(self.treeWidget, SIGNAL("contentChanged(void)"), self.updateGeometry)
-        QObject.connect(self.treeWidget, SIGNAL("contentChanged(void)"), self.centralwidget.updateGeometry)
-        QObject.connect(self.treeWidget, SIGNAL("contentChanged(void)"), self.contentChanged)
+        QObject.connect(self.treeWidget,
+                        SIGNAL("contentChanged(void)"),
+                        self.updateGeometry)
+        QObject.connect(self.treeWidget, 
+                        SIGNAL("contentChanged(void)"),
+                        self.centralwidget.updateGeometry)
+        QObject.connect(self.treeWidget,
+                        SIGNAL("contentChanged(void)"),
+                        self.contentChanged)
         self.treeWidget.clear() # clears and rebuilds the tree
 
     def closeEvent(self, event):
