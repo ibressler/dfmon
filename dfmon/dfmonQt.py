@@ -31,10 +31,10 @@ def tr(s):
 
 class MyItemDelegate(QItemDelegate):
     """Row color based on device usage state."""
-    def __init__(s, parent = None):
-        QItemDelegate.__init__(s, parent)
+    def __init__(self, parent = None):
+        QItemDelegate.__init__(self, parent)
 
-    def paint (s, painter, option, index):
+    def paint (self, painter, option, index):
         if not (QStyle.State_Selected & option.state):
             r = QRect(option.rect)
             r.setX(0)
@@ -45,45 +45,45 @@ class MyItemDelegate(QItemDelegate):
                 painter.setBrush(QColor(0, 255, 0, 128))
             painter.setPen(Qt.lightGray)
             painter.drawRect(r)
-        QItemDelegate.paint(s, painter, option, index)
+        QItemDelegate.paint(self, painter, option, index)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 
-    def __init__(s, parent = None):
-        QMainWindow.__init__(s, parent)
-        s.setupUi(s)
-        #s.treeWidget.setHeaderHidden(True) # qt 4.4
-        delegate = MyItemDelegate(s.treeWidget.itemDelegate())
-        s.treeWidget.setItemDelegate(delegate)
-        headerItem = s.treeWidget.headerItem()
+    def __init__(self, parent = None):
+        QMainWindow.__init__(self, parent)
+        self.setupUi(self)
+        #self.treeWidget.setHeaderHidden(True) # qt 4.4
+        delegate = MyItemDelegate(self.treeWidget.itemDelegate())
+        self.treeWidget.setItemDelegate(delegate)
+        headerItem = self.treeWidget.headerItem()
         headerItem.setText(0,tr("available devices"))
         headerItem.setTextAlignment(0, Qt.AlignHCenter)
-        headerItem.setToolTip(0, QString("%1 %2").arg(s.windowTitle(), "0.1")
+        headerItem.setToolTip(0, QString("%1 %2").arg(self.windowTitle(), "0.1")
                             +QString("\n%1").arg(u"Copyright (C) 2010  Ingo Bressler")
                             +QString("\n%1\n%2\n%3").arg("This program comes with ABSOLUTELY", "NO WARRANTY. This is free software, use", "and redistribute it under the terms of the GPLv3.")
                             +QString("\n%1\n%2").arg(tr("For information, feedback and contributions, please visit:"), "http://github.com/ibressler/dfmon"))
-        s.treeWidget.setMouseTracking(True)
-        QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.updateGeometry)
-        QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.centralwidget.updateGeometry)
-        QObject.connect(s.treeWidget, SIGNAL("contentChanged(void)"), s.contentChanged)
-        s.treeWidget.clear() # clears and rebuilds the tree
+        self.treeWidget.setMouseTracking(True)
+        QObject.connect(self.treeWidget, SIGNAL("contentChanged(void)"), self.updateGeometry)
+        QObject.connect(self.treeWidget, SIGNAL("contentChanged(void)"), self.centralwidget.updateGeometry)
+        QObject.connect(self.treeWidget, SIGNAL("contentChanged(void)"), self.contentChanged)
+        self.treeWidget.clear() # clears and rebuilds the tree
 
-    def closeEvent(s, event):
-        s.treeWidget.cleanup()
-        QMainWindow.closeEvent(s, event)
+    def closeEvent(self, event):
+        self.treeWidget.cleanup()
+        QMainWindow.closeEvent(self, event)
 
-    def keyPressEvent(s, keyEvent):
-        QMainWindow.keyPressEvent(s, keyEvent)
+    def keyPressEvent(self, keyEvent):
+        QMainWindow.keyPressEvent(self, keyEvent)
         # <esc> closes the window/application
         if keyEvent.key() == Qt.Key_Escape:
-            s.close()
+            self.close()
 
-    def contentChanged(s):
-#        s.treeWidget.adjustSize()
-        s.treeWidget.updateGeometry()
-#        s.resize(200, 256)
-        sh = s.sizeHint()
-        s.setFixedWidth(sh.width())
+    def contentChanged(self):
+#        self.treeWidget.adjustSize()
+        self.treeWidget.updateGeometry()
+#        self.resize(200, 256)
+        sh = self.sizeHint()
+        self.setFixedWidth(sh.width())
 
 # end MainWindow
 
