@@ -19,10 +19,10 @@ Linux system with Truecrypt support.
 
 ### About
 
-Its creation was motivated by the need to hot-unplug (e)SATA hard disks from the
-running system. Recent Linux distributions support this (via a GUI) for USB 
-devices but not for SATA devices directly, afaik (the author). Please tell me,
-if I'm wrong, or if this is not supported by the kernel at all.
+Its creation was motivated by the need to hot-unplug (e)SATA hard disks from
+the running system. Recent Linux distributions support this (via a GUI) for
+USB devices but not for SATA devices directly, afaik (the author). Please
+tell me, if I'm wrong, or if this is not supported by the kernel at all.
 
 Device removal preparation follows [a guide from Redhat] [1]. Except for LVM,
 md or multipath setups - to keep it simple for the beginning.
@@ -71,12 +71,12 @@ feel free to point me at problems, give suggestions or provide patches ;)
 
 ### Copying
 
-Qt dependencies are restricted to dfmonQt. dfmonCmd as well as dfmonBackend
-are free of Qt. Therefore, it should be possible to write a different GUI, if
-someone dislikes Qt. Additionally, the backend could be licensed 'more free', if
-there is interest.
+Qt dependencies are restricted to dfmon.uiqt. dfmon.uicmd as well as
+dfmon.backend are free of Qt. Therefore, it should be possible to write a
+different GUI, if desired.
 
-Copyright (c) 2011 by Ingo Breßler
+Copyright (c) 2010-2011, Ingo Breßler <dfmon@ingobressler.net>
 
-This is Free Software distributed under the terms of the GPL license. See the COPYING file for license rights and limitations.
+This is Free Software distributed under the terms of the GPL license.
+See the COPYING file for license rights and limitations.
 
