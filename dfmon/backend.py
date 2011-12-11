@@ -40,7 +40,7 @@ OS_SYS_PATH = "/sys/class/scsi_device/"
 # graphical sudo handlers to test for, last one is the fallback solution
 PLAIN_SUDO_QUESTION = "askforpwd"
 KNOWN_SUDO_HANDLERS = [["kdesu", "-c"],
-                     ["gksudo"],
+                     ["gksudo", "--"],
                      ["sudo", "-p", PLAIN_SUDO_QUESTION, "-s"],
                      ["su", "-c"]]
 
@@ -165,6 +165,7 @@ class SysCmd:
             cmdList = newcmd
             self._sudo = True
         try:
+            print "starting:", cmdList
             self._cmd = subprocess.Popen(cmdList,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
