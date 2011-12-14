@@ -165,7 +165,7 @@ class SysCmd:
             cmdList = newcmd
             self._sudo = True
         try:
-            print "starting:", cmdList
+            #print "starting:", cmdList
             self._cmd = subprocess.Popen(cmdList,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
@@ -846,6 +846,7 @@ class ScsiDevice(Device):
                 except CmdReturnCodeError, e:
                     raise MyError(str(e))
                 else:
+                    time.sleep(0.1)
                     if not self.isValid():
                         raise RemovalSuccessInfo()
 
