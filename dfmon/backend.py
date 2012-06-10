@@ -495,14 +495,33 @@ class BlockDevice(Device):
                 os.path.isdir(self._mountPoint)):
                 break
         # get partitions eventually
-        partitions = self.getSubDev(self.sysfs(), self._devName+"*")
-        self._partitions = []
-        addSubDevices(self._partitions, partitions, self.sysfs())
+        self._partitions = self.getSubDevices(self.sysfs(), self._devName+"*")
         # get holders eventually
         basePath = self.sysfs()+"holders"+os.sep
-        holders = self.getSubDev(basePath, "*")
-        self._holders = []
-        addSubDevices(self._holders, holders, basePath)
+        self._holders = self.getSubDevices(basePath, "*")
+
+    def getSubDevices(self, basePath, matchStr):
+        """
+        Returns a list of sub-devices (partitions and holders/dependents)
+        """
+        if not self.isValid():
+            return []
+        entries = glob.glob(basePath + matchStr)
+        if entries is None or len(entries) <= 0:
+            return []
+        # return a list of the holder names relative to the input block path
+        relativeNames = [path[len(basePath):] for path in entries]
+        # add all partitions as block devices (recursive)
+        deviceList = []
+        for devName in relativeNames:
+            queryPath = os.path.join(basePath, devName)
+            if not os.path.isdir(queryPath):
+                continue
+            blockDev = BlockDevice(queryPath, devName)
+            if not blockDev.isValid():
+                raise MyError("Not Valid")
+            deviceList.append(blockDev)
+        return deviceList
 
     def inUse(self):
         if self._holders and len(self._holders) > 0:
@@ -516,19 +535,6 @@ class BlockDevice(Device):
         if self._mountPoint:
             return True
         return False
-
-    def getSubDev(self, basePath, matchStr):
-        """
-        Returns a list of sub-devices (partitions and holders/dependents)
-        """
-        if not self.isValid():
-            return []
-        entries = glob.glob(basePath + matchStr)
-        if not entries: 
-            return []
-        # return a list of the holder names relative to the input block path
-        relList = [ absPath[len(basePath):] for absPath in entries ]
-        return relList
 
     def __str__(self):
         res = ""
@@ -680,26 +686,6 @@ def getSize(sysfsPath):
         return long(text)*BLOCKSIZE
     else:
         return -1
-
-def addSubDevices(outList, devNameList, basePath):
-    """
-    Creates block devices from a device name list and adds them to outList
-
-    in:     directory path where the device names from the list exist
-    in:     list of device names
-    in/out: list of valid block devices
-    """
-    if outList == None or not devNameList:
-        return
-    # add all partitions as block devices (recursive)
-    for devName in devNameList:
-        queryPath = os.path.join(basePath, devName)
-        if not os.path.isdir(queryPath):
-            continue
-        dev = BlockDevice(queryPath, devName)
-        if not dev.isValid():
-            raise MyError("Not Valid")
-        outList.append(dev)
 
 class ScsiDevice(Device):
     _scsiAdr = None # list with <host> <channel> <id> <lun>
