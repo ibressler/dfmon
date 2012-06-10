@@ -63,9 +63,6 @@ TIME_VALUES = [31536000, 604800, 86400, 3600, 60, 1]
 # output indent level used for console output
 OUTPUT_INDENT = ""
 
-# dictionary for io filename lookup and caching
-IO_FILE_CACHE = None
-
 ## implementation ##
 
 def formatSize(size):
@@ -473,14 +470,13 @@ class BlockDevice(Device):
 
     def __init__(self, sysfsPath, blkDevName):
         Device.__init__(self, sysfsPath)
-        print "BlockDevice", sysfsPath, blkDevName
         self.setSysfs(self.sysfs() + os.sep)
         self._devName = blkDevName
         self._size = getSize(sysfsPath)
         if self._size < 0:
             raise MyError("Could not determine block device size")
         self.getDeviceNumber()
-        self._ioFiles = getIoFilename(self._devNum)
+        self._ioFiles = DEVICE_FILE_CACHE.getDeviceFiles(self._devNum)
         for fn in self._ioFiles:
             if not os.path.exists(fn):
                 raise MyError("Could not find IO device path '{0}'".format(fn))
@@ -888,58 +884,60 @@ def getBlkDevPath(devPath):
     devName = fullPath[len(devPath)+1:]
     return (fullPath, devName)
 
+class DeviceFileCache(object):
 # how to improve this ? is there a direct way to get the device file ?
 # speedup by caching ?
-def getIoFilename(devNum):
-    """
-    Search the block device filename in /dev/ based on the major/minor
-    number.
-    """
-    if not devNum or devNum < 0:
-        return ""
-    global IO_FILE_CACHE
-    if (not IO_FILE_CACHE or
-        len(IO_FILE_CACHE) == 0 or
-        not IO_FILE_CACHE.has_key(devNum)):
-        rebuildIoFileCache()
-    # retrieve the io file if available
-    names = IO_FILE_CACHE.get(devNum, [])
-    return names
+    _cache = None
 
-def rebuildIoFileCache():
-    global IO_FILE_CACHE
-    if not IO_FILE_CACHE:
-        IO_FILE_CACHE = dict()
-    IO_FILE_CACHE.clear()
-    for root, dirs, files in os.walk(OS_DEV_PATH):
-        # ignore directories with leading dot
-        for i in reversed(range(0, len(dirs))):
-            if dirs[i][0] == "." or dirs[i] == "input":
-                del dirs[i]
-        # add the files found to a list
-        for fn in files:
-            # ignore some files
-            if fn[0:3] == "pty" or fn[0:3] == "tty" or fn[0:3] == "ram":
-                continue
-            fullName = os.path.join(root, fn)
-            prepend = True
-            try:
-                statinfo = os.lstat(fullName) # don't follow symbolic link
-                if stat.S_ISLNK(statinfo.st_mode):
-                    statinfo = os.stat(fullName) # follow symbolic link
-                    prepend = False
-            except OSError, e:
-                print "Can't stat", fullName, "->", str(e)
-                continue
-            else:
+    def __init__(self):
+        self._cache = dict()
+        self.rebuild()
+
+    def getDeviceFiles(self, devnum):
+        """
+        Search the block device filename in /dev/ based on the major/minor
+        number.
+        """
+        # retrieve the io file if available
+        if devnum not in self._cache:
+            self.rebuild()
+        names = self._cache.get(devnum, [])
+        return names
+
+    def rebuild(self):
+        self._cache.clear()
+        for root, dirs, files in os.walk(OS_DEV_PATH):
+            # ignore directories with leading dot
+            for i in reversed(range(0, len(dirs))):
+                if dirs[i][0] == "." or dirs[i] == "input":
+                    del dirs[i]
+            # add the files found to a list
+            for fn in files:
+                # ignore some files
+                if fn[:3] == "pty" or fn[:3] == "tty" or fn[:3] == "ram":
+                    continue
+                fullname = os.path.join(root, fn)
+                prepend = True
+                try:
+                    statinfo = os.lstat(fullname) # don't follow symbolic link
+                    if stat.S_ISLNK(statinfo.st_mode):
+                        statinfo = os.stat(fullname) # follow symbolic link
+                        prepend = False
+                except OSError, e:
+                    print "Can't stat", fullname, "->", str(e)
+                    continue
                 # consider block devices only, take dev numbers for the keys
-                if stat.S_ISBLK(statinfo.st_mode):
-                    lst = IO_FILE_CACHE.get(statinfo.st_rdev, [])
-                    if prepend:
-                        lst.insert(0, fullName)
-                    else:
-                        lst.append(fullName)
-                    IO_FILE_CACHE[statinfo.st_rdev] = lst
+                if not stat.S_ISBLK(statinfo.st_mode):
+                    continue
+                self.add(statinfo.st_rdev, fullname, prepend)
+
+    def add(self, key, value, prepend = False):
+        lst = self._cache.get(key, [])
+        if prepend:
+            lst.insert(0, value)
+        else:
+            lst.append(value)
+        self._cache[key] = lst
 
 def getScsiDevices(path):
     """
@@ -967,7 +965,10 @@ def getScsiDevices(path):
                 devs.insert(i, d)
     return devs
 
+# dictionary for io filename lookup and caching
+DEVICE_FILE_CACHE = DeviceFileCache()
+
 # get initial system status
 STATUS = Status()
 
-# vim: set ts=4 sw=4 tw=0:
+# vim: set ts=4 sts=4 sw=4 tw=0:
