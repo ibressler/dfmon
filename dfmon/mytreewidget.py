@@ -33,6 +33,7 @@ from PyQt4.QtGui import (QAction, QTreeWidgetItem, QTreeWidget, QLineEdit,
                          QInputDialog, QMenu, QMessageBox)
 import backend
 from backend import formatSize, formatTimeDistance
+import traceback
 
 def tr(s): # translation shortcut
     return QCoreApplication.translate(None, s)
@@ -303,6 +304,7 @@ class MyTreeWidget(QTreeWidget):
     def exceptionHandler(self, text = "", e = None):
         if not e:
             return
+        print traceback.format_exc()
         failureText = QString("Action '%1' failed: \n").arg(text)
         try:
             raise e
@@ -323,7 +325,8 @@ class MyTreeWidget(QTreeWidget):
                     tr("It is safe to unplug the device now."),
                     QMessageBox.Ok, QMessageBox.Ok)
         except Exception, e:
-            QMessageBox.critical(self, tr("An Error Occurred"), 
+            QMessageBox.critical(self, tr("An Error Occurred: {0}"
+                                          .format(type(e).__name__)),
                                 failureText+
                                 str(e), 
                                 QMessageBox.Ok, QMessageBox.Ok)
