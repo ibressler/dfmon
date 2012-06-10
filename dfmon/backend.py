@@ -32,10 +32,79 @@ import glob
 import stat
 import subprocess
 import time
+import collections
 
 # required system paths
 OS_DEV_PATH = "/dev/"
 OS_SYS_PATH = "/sys/class/scsi_device/"
+
+def isList(obj):
+    return not isString(obj) and isinstance(obj, collections.Sequence)
+
+def isString(obj):
+    return isinstance(obj, basestring)
+
+def isNonEmptyString(obj):
+    return (isString(obj) and len(obj) > 0)
+
+class ReturnCodeError(StandardError):
+    pass
+
+class GKSu(object):
+    _cmdName = "gksu"
+    _helptext = None
+    _version = None
+    _sudoMode = None
+
+    @property
+    def cmdName(self):
+        return self._cmdName
+
+    @property
+    def version(self):
+        if not isList(self._version):
+            key = "version"
+            start = self.helptext.find(key) + len(key)
+            end = self.helptext.find("\n", start)
+            self._version = tuple(self.helptext[start:end].strip().split("."))
+        return self._version
+
+    @property
+    def helptext(self):
+        if not isString(self._helptext):
+            retcode, self._helptext = self.call("--help")
+            if retcode != 0:
+                raise ReturnCodeError(retcode)
+        return self._helptext
+
+    @property
+    def hasSudoMode(self):
+        return self.helptext.find("sudo-mode, -S") >= 0
+
+    @property
+    def name(self):
+        return self.__class__.__name__
+
+    @property
+    def cmd(self):
+        return self._cmdName, "-S"
+
+    def __init__(self):
+        assert self.hasSudoMode, \
+                "{0} does not support sudo mode!".format(self.name)
+
+    def call(self, *cmdList):
+        """Runs a command using this sudo handler."""
+        cmd = subprocess.Popen(self.cmd + cmdList,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE)
+        stderr, stdout = cmd.communicate() # waits eventually
+        return cmd.poll(), stderr + stdout
+
+sudo = GKSu()
+print sudo.call("echo", "blubb")
+sys.exit(0)
 
 # graphical sudo handlers to test for, last one is the fallback solution
 PLAIN_SUDO_QUESTION = "askforpwd"
@@ -238,7 +307,7 @@ class Status:
 
     def __init__(self):
         if sys.platform != "linux2":
-            raise MyError("This tool supports Linux only (yet).")
+            raise MyError("This tool supports Linux only.")
         for path in OS_DEV_PATH, OS_SYS_PATH:
             if not os.path.isdir(path):
                 raise MyError("Specified device path '{0}' does not exist !"
