@@ -413,7 +413,7 @@ class Device:
 
 class BlockDevice(Device):
     _devName = None
-    _ioFile = None
+    _ioFiles = None
     _devNum = None
     _size = None
     _partitions = None # list of BlockDevices
@@ -424,19 +424,22 @@ class BlockDevice(Device):
     # getter methods
 
     def shortName(self):
-        return os.path.basename(self.ioFile())
+        return os.path.basename(self.fullName())
 
     def fullName(self):
-        return self.ioFile()
+        fn = ""
+        if len(self.ioFiles()) > 0:
+            fn = self.ioFiles()[0]
+        return fn
 
-    def ioFile(self): 
+    def ioFiles(self): 
         """
         Returns the absolute filename of the block device file
         (usually in /dev/).
         """
-        if not self._ioFile:
-            return ""
-        return self._ioFile
+        if not self._ioFiles:
+            return []
+        return self._ioFiles
 
     def mountPoint(self): 
         """
@@ -470,16 +473,17 @@ class BlockDevice(Device):
 
     def __init__(self, sysfsPath, blkDevName):
         Device.__init__(self, sysfsPath)
+        print "BlockDevice", sysfsPath, blkDevName
         self.setSysfs(self.sysfs() + os.sep)
         self._devName = blkDevName
         self._size = getSize(sysfsPath)
         if self._size < 0:
             raise MyError("Could not determine block device size")
         self.getDeviceNumber()
-        self._ioFile = getIoFilename(self._devNum)
-        if not os.path.exists(self._ioFile):
-            raise MyError("Could not find IO device path '"
-                          +self._ioFile+"'")
+        self._ioFiles = getIoFilename(self._devNum)
+        for fn in self._ioFiles:
+            if not os.path.exists(fn):
+                raise MyError("Could not find IO device path '{0}'".format(fn))
         self.timeStamp()
         self.update()
         # final verification
@@ -488,10 +492,12 @@ class BlockDevice(Device):
 
     def update(self):
         # determine mount point
-        self._mountPoint = STATUS.mount().getMountPoint(self._ioFile)
-        if (self._mountPoint != "swap" and
-            not os.path.isdir(self._mountPoint)):
-            self._mountPoint = None
+        self._mountPoint = None
+        for fn in self._ioFiles:
+            self._mountPoint = STATUS.mount().getMountPoint(fn)
+            if (self._mountPoint == "swap" or
+                os.path.isdir(self._mountPoint)):
+                break
         # get partitions eventually
         partitions = self.getSubDev(self.sysfs(), self._devName+"*")
         self._partitions = []
@@ -530,7 +536,7 @@ class BlockDevice(Device):
 
     def __str__(self):
         res = ""
-        for attr in [self._devName, self._ioFile, self._mountPoint, 
+        for attr in [self._devName, self._ioFiles, self._mountPoint, 
                      formatSize(self._size), self._devNum, self.sysfs()]:
             res = res + str(attr) + " "
 
@@ -555,18 +561,18 @@ class BlockDevice(Device):
     def isValid(self):
         return self._devName and \
                 os.path.isdir(self.sysfs()) and \
-                os.path.exists(self._ioFile) and \
+                all([os.path.exists(fn) for fn in self._ioFiles]) and \
                 self._devNum > 0 and \
                 self._size >= 0
 
     def timeStamp(self):
         """Get the time this device was added to the system."""
         if not self._timeStamp:
-            if not os.path.exists(self.ioFile()):
+            if not any([os.path.exists(fn) for fn in self.ioFiles()]):
                 self._timeStamp = -1
             else:
                 try:
-                    statinfo = os.stat(self.ioFile())
+                    statinfo = os.stat(self.ioFiles()[0])
                 except Exception, e:
                     self._timeStamp = -1
                 else:
@@ -583,7 +589,7 @@ class BlockDevice(Device):
 
     def getDeviceNumber(self):
         if not self._devNum:
-            fn = os.path.join(self.sysfs(),"dev")
+            fn = os.path.join(self.sysfs(), "dev")
             if not os.path.isfile(fn):
                 return -1
             (major, minor) = getLineFromFile(fn).split(":")
@@ -596,7 +602,7 @@ class BlockDevice(Device):
         """Mount block device"""
         # no partitions
         if len(self._partitions) == 0:
-            if not os.path.exists(self.ioFile()):
+            if not any([os.path.exists(fn) for fn in self.ioFiles()]):
                 return
             if self.inUse():
                 raise DeviceInUseWarning()
@@ -606,15 +612,15 @@ class BlockDevice(Device):
                         cmd = SysCmd(["truecrypt", "-t",
                                       "--non-interactive",
                                       "-p", password,
-                                      "--mount", self.ioFile()],
+                                      "--mount", self.ioFiles()[0]],
                                      sudo = True)
                     else:
                         cmd = SysCmd(["truecrypt", "--mount",
-                                      self.ioFile()], sudo = True)
+                                      self.ioFiles()[0]], sudo = True)
                     cmd.output()
                 except MyError, e:
                     raise MyError("Failed to mount '{0}':\n{1}"
-                                  .format(self.ioFile(), str(e)))
+                                  .format(self.ioFiles()[0], str(e)))
         elif len(self._partitions) == 1:
             self._partitions[0].mount()
         else:
@@ -633,7 +639,7 @@ class BlockDevice(Device):
         isTruecrypt = strInList("truecrypt")
         try:
             cmd = None
-            if isTruecrypt(self._ioFile):
+            if any([isTruecrypt(fn) for fn in self._ioFiles]):
                 # --non-interactive
                 cmd = SysCmd(["truecrypt", "-t",
                               "--non-interactive",
@@ -645,21 +651,20 @@ class BlockDevice(Device):
                 raise MyError(stdout)
         except MyError, e:
             raise MyError("Failed to umount '{0}':\n{1}"
-                          .format(self.ioFile(), str(e)))
+                          .format(self.ioFiles()[0], str(e)))
         self.update()
 
     def flush(self):
         """Flushes the device buffers."""
-#        print "flush", self.ioFile()
         for part in self._partitions:
             part.flush()
         for holder in self._holders:
             holder.flush()
-        if self.inUse() or not os.path.exists(self.ioFile()):
+        if self.inUse() or not os.path.exists(self.ioFiles()[0]):
             return
         try:
             cmd = SysCmd(["/sbin/blockdev",
-                          "--flushbufs", self.ioFile()], True)
+                          "--flushbufs", self.ioFiles()[0]], True)
             cmd.output()
         except CmdReturnCodeError, e:
             # what to do on fail, ignore ?
@@ -892,15 +897,14 @@ def getIoFilename(devNum):
     """
     if not devNum or devNum < 0:
         return ""
-    foundName = ""
     global IO_FILE_CACHE
     if (not IO_FILE_CACHE or
         len(IO_FILE_CACHE) == 0 or
         not IO_FILE_CACHE.has_key(devNum)):
         rebuildIoFileCache()
     # retrieve the io file if available
-    foundName = IO_FILE_CACHE.get(devNum, "")
-    return foundName
+    names = IO_FILE_CACHE.get(devNum, [])
+    return names
 
 def rebuildIoFileCache():
     global IO_FILE_CACHE
@@ -918,15 +922,24 @@ def rebuildIoFileCache():
             if fn[0:3] == "pty" or fn[0:3] == "tty" or fn[0:3] == "ram":
                 continue
             fullName = os.path.join(root, fn)
+            prepend = True
             try:
-                statinfo = os.lstat(fullName) # no symbolic links !
+                statinfo = os.lstat(fullName) # don't follow symbolic link
+                if stat.S_ISLNK(statinfo.st_mode):
+                    statinfo = os.stat(fullName) # follow symbolic link
+                    prepend = False
             except OSError, e:
                 print "Can't stat", fullName, "->", str(e)
                 continue
             else:
                 # consider block devices only, take dev numbers for the keys
                 if stat.S_ISBLK(statinfo.st_mode):
-                    IO_FILE_CACHE[statinfo.st_rdev] = fullName
+                    lst = IO_FILE_CACHE.get(statinfo.st_rdev, [])
+                    if prepend:
+                        lst.insert(0, fullName)
+                    else:
+                        lst.append(fullName)
+                    IO_FILE_CACHE[statinfo.st_rdev] = lst
 
 def getScsiDevices(path):
     """
