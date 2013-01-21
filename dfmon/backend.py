@@ -32,6 +32,7 @@ import glob
 import stat
 import subprocess
 import time
+import logging
 
 # required system paths
 OS_DEV_PATH = "/dev/"
@@ -937,18 +938,17 @@ def getScsiDevices(path):
         try:
             d = ScsiDevice(path, entry)
         except MyError, e:
-            raise MyError("Init failed for "+entry+": "+str(e))
+            logging.warning("Init failed for "+entry+": "+str(e))
+            continue
         else:
-            if not d.isValid():
-                raise MyError("Device not valid: "+entry)
-            else:
-                # add the device in chronological order
-                i = 0
-                for oldDev in devs:
-                    if oldDev.timeStamp() < d.timeStamp():
-                        break
-                    i += 1
-                devs.insert(i, d)
+            assert d.isValid(), "Device not valid: "+entry
+            # add the device in chronological order
+            i = 0
+            for oldDev in devs:
+                if oldDev.timeStamp() < d.timeStamp():
+                    break
+                i += 1
+            devs.insert(i, d)
     return devs
 
 # dictionary for io filename lookup and caching
